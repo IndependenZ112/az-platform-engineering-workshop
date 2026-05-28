@@ -1,0 +1,113 @@
+# ──────────────────────────────────────────────────────────────────────────────
+#  Azure Platform Engineering Workshop — repository .gitignore
+#  Covers: .NET 10 (workload-app/backend), Vite/React/TypeScript
+#  (workload-app/frontend), Bicep, PowerShell, draw.io, VS Code, OS cruft.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+ehthumbs_vista.db
+
+# ── Editors / IDEs ───────────────────────────────────────────────────────────
+# Keep shared VS Code settings (extensions.json, tasks.json) but ignore
+# per-user state. Uncomment the broader pattern if you prefer to ignore all.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/mcp.json
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── .NET ─────────────────────────────────────────────────────────────────────
+bin/
+obj/
+out/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+*.cache
+*.pdb
+*.dll
+*.exe
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+.vs/
+# EF Core
+*.mdf
+*.ldf
+# Local user secrets
+**/secrets.json
+**/*.user.json
+
+# ── Node / npm / pnpm / yarn ─────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+.yarn/cache
+.yarn/install-state.gz
+
+# ── Vite / frontend build output ─────────────────────────────────────────────
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# ── TypeScript ───────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Environment files ────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Bicep / Azure deploy artefacts ───────────────────────────────────────────
+# Compiled ARM JSON next to .bicep files
+**/*.bicep.json
+# Bicep build cache
+.bicep/
+# Local what-if / deployment output captures
+*.whatif.txt
+*.deployment.json
+
+# ── Azure CLI / azd ──────────────────────────────────────────────────────────
+.azure/
+
+# ── PowerShell ───────────────────────────────────────────────────────────────
+*.ps1.bak
+
+# ── draw.io ──────────────────────────────────────────────────────────────────
+*.drawio.bkp
+*.drawio.dtmp
+
+# ── Logs / coverage / tmp ────────────────────────────────────────────────────
+*.log
+logs/
+coverage/
+*.lcov
+.nyc_output/
+tmp/
+temp/
+
+# ── Secrets / certificates (defence in depth — none should be committed) ─────
+*.pfx
+*.pem
+*.key
+*.crt
+secrets/

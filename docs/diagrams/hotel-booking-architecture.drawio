@@ -1,0 +1,150 @@
+<mxfile host="app.diagrams.net" agent="copilot" version="24.7.17">
+  <diagram name="Hotel Booking - Spoke Architecture" id="hotel-booking-arch">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Hotel Booking workload — spoke design (rg-workload-01)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="20" y="10" width="1360" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user" value="End user&#xa;(browser)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="40" y="120" width="120" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="hub-grp" value="rg-platform  •  vnet-hub  192.168.100.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;arcSize=8;verticalAlign=top;fontStyle=1;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="500" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="hub-fw" value="AzureFirewallSubnet&#xa;192.168.100.0/26&#xa;(reserved)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="60" y="590" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hub-gw" value="GatewaySubnet&#xa;192.168.100.64/27&#xa;(reserved)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="300" y="590" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hub-shared" value="snet-shared-services&#xa;192.168.100.96/27" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="60" y="680" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="hub-note" value="No firewall / gateway deployed in workshop.&#xa;Hub vnet is linked to spoke Private DNS zones so any future&#xa;shared-services workload resolves PEP IPs correctly." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="60" y="760" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="spoke-grp" value="rg-workload-01  •  vnet-workload-01  10.10.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;arcSize=8;verticalAlign=top;fontStyle=1;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="580" y="120" width="780" height="540" as="geometry" />
+        </mxCell>
+
+        <mxCell id="snet-aca" value="snet-aca-env&#xa;10.10.0.0/23&#xa;delegated: Microsoft.App/environments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="600" y="170" width="500" height="260" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aca-env" value="Azure Container Apps environment&#xa;(workload-profile, VNet-integrated)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="620" y="220" width="460" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ca-fe" value="ca-hotelfrontend&#xa;nginx + static SPA&#xa;external ingress (public FQDN)&#xa;min=0  max=3&#xa;UAMI: id-ca-hotelfrontend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;shadow=1" vertex="1" parent="1">
+          <mxGeometry x="640" y="260" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ca-be" value="ca-hotelapi&#xa;.NET 10 minimal API&#xa;internal ingress (env-private FQDN)&#xa;min=0  max=5&#xa;UAMI: id-ca-hotelapi" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;shadow=1" vertex="1" parent="1">
+          <mxGeometry x="860" y="260" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="snet-pep" value="snet-private-endpoints&#xa;10.10.2.0/27&#xa;privateEndpointNetworkPolicies = Disabled" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1120" y="170" width="220" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="pep-sql" value="PEP&#xa;Azure SQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="1150" y="220" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="pep-future" value="(room for more PEPs:&#xa;Key Vault, Storage, ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=10;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="1150" y="290" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="reserved" value="10.10.2.32 - 10.10.3.255&#xa;reserved for growth" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="1130" y="360" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sql" value="Azure SQL Database&#xa;Serverless GP_S_Gen5_2&#xa;auto-pause 1h  •  hoteldb&#xa;Entra-only auth (no SQL admin)&#xa;public network access: Disabled" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;shadow=1" vertex="1" parent="1">
+          <mxGeometry x="600" y="470" width="220" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="law" value="Log Analytics workspace&#xa;+ Application Insights&#xa;(ACA logs, OTel sink for API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="860" y="470" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dns" value="Private DNS zones (distributed pattern)&#xa;• privatelink.database.windows.net&#xa;linked to: vnet-workload-01  +  vnet-hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="860" y="545" width="480" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="public-grp" value="Public (workshop exceptions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;arcSize=8;verticalAlign=top;fontStyle=1;fontSize=12" vertex="1" parent="1">
+          <mxGeometry x="220" y="220" width="300" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="acr" value="Azure Container Registry&#xa;Standard SKU&#xa;public network: enabled&#xa;adminUser: disabled&#xa;AcrPull via UAMIs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11;shadow=1" vertex="1" parent="1">
+          <mxGeometry x="240" y="260" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="fe-public" value="ACA public FQDN of&#xa;ca-hotelfrontend&#xa;(TLS termination by ACA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=11" vertex="1" parent="1">
+          <mxGeometry x="240" y="380" width="260" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-user-fe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=block;startArrow=none" edge="1" parent="1" source="user" target="fe-public">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-user-fe-lbl" value="HTTPS 443" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e-user-fe">
+          <mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-fepub-ca" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b85450;strokeWidth=2;dashed=1;endArrow=block" edge="1" parent="1" source="fe-public" target="ca-fe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-fe-be" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block" edge="1" parent="1" source="ca-fe" target="ca-be">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-fe-be-lbl" value="nginx proxy_pass /api&#xa;→ env-internal FQDN" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e-fe-be">
+          <mxGeometry x="0" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-be-pep" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block" edge="1" parent="1" source="ca-be" target="pep-sql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-be-pep-lbl" value="TCP 1433&#xa;Entra (Active Directory Default)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e-be-pep">
+          <mxGeometry x="0" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-pep-sql" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=block" edge="1" parent="1" source="pep-sql" target="sql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-aca-acr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=block;dashed=1" edge="1" parent="1" source="aca-env" target="acr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-aca-acr-lbl" value="image pull&#xa;(AcrPull via UAMI)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" vertex="1" connectable="0" parent="e-aca-acr">
+          <mxGeometry x="0" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-peer" style="edgeStyle=none;html=1;strokeColor=#6c8ebf;strokeWidth=3;endArrow=classic;startArrow=classic;dashed=0" edge="1" parent="1" source="spoke-grp" target="hub-grp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="560" y="400" /><mxPoint x="560" y="700" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-peer-lbl" value="VNet peering (bi-directional)&#xa;allowVirtualNetworkAccess=true&#xa;allowForwardedTraffic=true" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontStyle=1" vertex="1" connectable="0" parent="e-peer">
+          <mxGeometry x="0" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="e-dns-hub" style="edgeStyle=none;html=1;strokeColor=#6c8ebf;strokeWidth=1;dashed=1;endArrow=open" edge="1" parent="1" source="dns" target="hub-grp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-dns-spoke" style="edgeStyle=none;html=1;strokeColor=#6c8ebf;strokeWidth=1;dashed=1;endArrow=open" edge="1" parent="1" source="dns" target="spoke-grp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-aca-law" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6c8ebf;strokeWidth=1;dashed=1;endArrow=open" edge="1" parent="1" source="aca-env" target="law">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend" value="Legend:&#10;• Red border = public surface (workshop exception)&#10;• Blue border = private / VNet-integrated&#10;• Green border = compute that scales to zero&#10;• Yellow cylinder = stateful data (auto-pause)&#10;• Dashed line = control / pull / log path" style="text;html=1;strokeColor=#999999;fillColor=#ffffff;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="680" width="380" height="100" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
