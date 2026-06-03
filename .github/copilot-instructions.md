@@ -42,3 +42,8 @@ Never edit anything inside `workload-app/` — there is no "ask first" path for 
 - Adding new top-level folders.
 - Introducing a new Azure service that wasn't already on the table for the current chore.
 - Running anything that touches a real Azure subscription (deployments, role assignments, resource creation).
+
+## other important instructions
+- the container registry and the public frontend are the only workload components that can have a public endpoint. Every other service must be locked down with private endpoints and/or service endpoints, and all inter-service communication must stay on the Microsoft backbone via Private DNS and peering.
+- you must make sure the local az cli principal has RBAC permissions to deploy all the resources in the Bicep templates, including the ability to create role assignments for user-assigned managed identities. If any permission is missing, the deployment will fail. Use `az role assignment create` to grant the necessary permissions before deployment. Also use this principal as an administrator for SQL Db.
+- do NOT look ahead further than the current chore. The next chore may introduce new requirements that would impact how you approach the current one, so stay focused on the task at hand and don't get ahead of yourself by trying to solve future problems before they are presented.

@@ -12,7 +12,7 @@
 [CmdletBinding()]
 param(
     [string]$ResourceGroupName = 'rg-platform',
-    [string]$Location = 'westeurope',
+    [string]$Location = 'swedencentral',
     [string]$DeploymentName = "hub-$(Get-Date -Format 'yyyyMMddHHmmss')"
 )
 
