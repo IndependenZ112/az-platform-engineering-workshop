@@ -4,18 +4,20 @@ This repo is the **Azure Platform Engineering workshop**. It is intentionally sp
 
 | Folder | Owner | Copilot scope |
 | --- | --- | --- |
-| `workload-app/` | The "application team" (out of scope for this workshop) | **Read-only.** Do not modify. |
+| `workload-app/` | The "application team" (out of scope for this workshop) | **Read-only. No exceptions.** Do not create, edit, move, or delete any file under this path — including Dockerfiles, `.dockerignore`, or anything else. |
 | `mock-alz/` | Workshop hub / shared landing zone | Read-only reference. Modify only when the chore explicitly says so. |
-| Everything else (`infra/`, `bicep/`, `.github/`, root `Dockerfile`s, READMEs, etc.) | The platform team (you + the workshop participant) | Editable. This is where the chores happen. |
+| `dockerfiles/` | Platform team | This is where the workload container build assets live (Dockerfiles, `.dockerignore`, nginx config, build/deploy scripts). |
+| Everything else (`infra/`, `bicep/`, `.github/`, READMEs, etc.) | The platform team (you + the workshop participant) | Editable. This is where the chores happen. |
 
 ## Non-negotiable rules
 
-1. **Never edit anything under `workload-app/`.** Not the `.cs`, `.csproj`, `.tsx`, `.ts`, `package.json`, `appsettings.json`, or any other file. The application is treated as a finished, immutable artifact the platform team has been handed. If a chore seems to require changing app code, stop and ask the user first.
+1. **Never create, edit, move, or delete anything under `workload-app/`.** Not the `.cs`, `.csproj`, `.tsx`, `.ts`, `package.json`, `appsettings.json`, `index.html`, **and not Dockerfiles or `.dockerignore` either**. The application is treated as a finished, immutable artifact the platform team has been handed. **No exceptions.** If a chore appears to require a change inside `workload-app/`, the participant does that edit by hand — Copilot does not.
 2. **Reading `workload-app/` is encouraged.** Read the code to understand what the app needs (runtime, ports, env vars, database, egress, etc.) so the platform design is grounded in reality.
-3. **Dockerfiles for the app are allowed**, because containerising is part of the platform work, not the app code. Place them as:
-   - `workload-app/backend/HotelBooking.Api/Dockerfile` (for the .NET 10 API)
-   - `workload-app/frontend/Dockerfile` (for the Vite/React frontend)
-   Do not change any source file alongside them. If the build needs an extra file (e.g. `.dockerignore`), that is fine — but no edits to existing app sources.
+3. **Dockerfiles for the app live under `dockerfiles/`**, not inside `workload-app/`. Layout:
+   - `dockerfiles/backend/Dockerfile` (for the .NET 10 API in `workload-app/backend/HotelBooking.Api/`)
+   - `dockerfiles/frontend/Dockerfile` (for the Vite/React SPA in `workload-app/frontend/`)
+   - Any `.dockerignore`, nginx config, or build/deploy scripts go alongside them under `dockerfiles/`.
+   Each Dockerfile's build context is the matching `workload-app/` subfolder, set explicitly at build time (`az acr build --file dockerfiles/backend/Dockerfile workload-app/backend/HotelBooking.Api`). The source tree stays untouched.
 4. **No application-level instructions.** Do not propose or follow guidance about C#, .NET, EF Core, React, Vite, Tailwind, TypeScript, or test frameworks. Those are the application team's concern.
 5. **Container base images must come from `mcr.microsoft.com` (Microsoft Container Registry), not Docker Hub.** This applies to every `FROM` line in any `Dockerfile` you author in this repo (platform-team images and the workload `Dockerfile`s allowed by rule 3). Prefer the first-party Microsoft image; if no MCR equivalent exists for a base image you need (e.g. a community runtime), stop and ask the user before falling back to Docker Hub. Examples: use `mcr.microsoft.com/dotnet/sdk:<tag>` and `mcr.microsoft.com/dotnet/aspnet:<tag>` for .NET, `mcr.microsoft.com/azurelinux/base/nodejs:<tag>` for Node, `mcr.microsoft.com/azurelinux/base/nginx:<tag>` for nginx, `mcr.microsoft.com/cbl-mariner/base/python:<tag>` (or the Azure Linux equivalent) for Python.
 
@@ -36,8 +38,7 @@ Hub-and-spoke Azure Landing Zone with **distributed Private DNS zones** (each wo
 
 ## When in doubt
 
-Ask the user before:
-- Editing anything inside `workload-app/` (always — see rule 1).
+Never edit anything inside `workload-app/` — there is no "ask first" path for that folder; refuse and tell the user to do it by hand. Ask the user before:
 - Adding new top-level folders.
 - Introducing a new Azure service that wasn't already on the table for the current chore.
 - Running anything that touches a real Azure subscription (deployments, role assignments, resource creation).

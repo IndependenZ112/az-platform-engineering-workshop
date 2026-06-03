@@ -72,5 +72,5 @@ Each chore in [CHORES.md](CHORES.md) is meant to be solved **with Copilot in age
 
 Two non-negotiables that come from [.github/copilot-instructions.md](.github/copilot-instructions.md):
 
-1. **Never edit anything under `workload-app/`** — it represents the application team's code, and the platform team treats it as immutable. (Chore 15 is the single, deliberate exception.)
+1. **Never create, edit, move, or delete anything under `workload-app/`** — the platform team treats it as immutable. Dockerfiles and other build assets live under `dockerfiles/`. Chore 15 requires a one-line edit inside `workload-app/`, but you make it **by hand** in the editor — Copilot is not allowed to touch the folder.
 2. **All container base images come from `mcr.microsoft.com`**, not Docker Hub.

@@ -185,8 +185,9 @@ Infrastructure is up but the container apps are still serving placeholder conten
 
 ### Hints
 
-- Backend: multi-stage build of the .NET 10 minimal API in [workload-app/backend/HotelBooking.Api/](workload-app/backend/HotelBooking.Api/).
-- Frontend: multi-stage build of the Vite/React SPA in [workload-app/frontend/](workload-app/frontend/), served by nginx. nginx config does SPA fallback (`try_files $uri /index.html`) and reverse-proxies `/api/` to the backend container app's **internal** ingress FQDN, keeping the frontend the only public surface.
+- Backend: multi-stage build at `dockerfiles/backend/Dockerfile`, built against the .NET 10 minimal API source in [workload-app/backend/HotelBooking.Api/](workload-app/backend/HotelBooking.Api/) (build context passed at build time, e.g. `az acr build --file dockerfiles/backend/Dockerfile workload-app/backend/HotelBooking.Api`).
+- Frontend: multi-stage build at `dockerfiles/frontend/Dockerfile`, built against [workload-app/frontend/](workload-app/frontend/), served by nginx. nginx config (also under `dockerfiles/frontend/`) does SPA fallback (`try_files $uri /index.html`) and reverse-proxies `/api/` to the backend container app's **internal** ingress FQDN, keeping the frontend the only public surface.
+- **Nothing is written into `workload-app/`** — no `Dockerfile`, no `.dockerignore`, no nginx config. Every build asset lives under `dockerfiles/`.
 - Every `FROM` line uses **`mcr.microsoft.com`** — per [.github/copilot-instructions.md](.github/copilot-instructions.md) rule 5.
 - `dockerfiles/Build-And-Deploy.ps1`:
   - Reads ACR login server and container app names from Chore 5 outputs (or accepts them as parameters). Do **not** hard-code names.
@@ -554,11 +555,13 @@ A tag change is the smallest possible "real" infra edit: it exercises lint → O
 
 Chore 14 proved the **infra** pipeline. This proves the **app** pipeline — make the smallest possible, visually obvious edit to the frontend, push it, watch `app-deploy` build a new image, deploy to test, smoke test, wait for prod approval, roll out to prod. When you load the site in the browser, your change is staring back at you.
 
-> **The one chore that touches `workload-app/`.** The standing rule is the platform team doesn't edit application code. This is a deliberate, single-line exception so you see an end-to-end app deploy with your own eyes. Treat it as a one-time stunt: change the title, ship it, move on. **Do not start adding features to the app.**
+> **You do this one by hand.** Copilot is not allowed to create, edit, move, or delete anything under `workload-app/` — not even for this chore. Open `index.html` in the editor yourself, change one line, save, commit. Treat it as a one-time stunt: rebrand the title, ship it, move on. **Do not ask Copilot to make the edit, and do not start adding features to the app.**
 
 ### Hints
 
-Edit one line in [workload-app/frontend/index.html](workload-app/frontend/index.html) — change the `<title>` from `StayBright Hotels` to something with your name/handle/team in it (e.g. `Azureholic Hotels`). Nothing else in the file. Nothing else in `workload-app/`.
+**Manually** edit one line in [workload-app/frontend/index.html](workload-app/frontend/index.html) — change the `<title>` from `StayBright Hotels` to something with your name/handle/team in it (e.g. `Azureholic Hotels`). Nothing else in the file. Nothing else in `workload-app/`.
+
+If you've never touched HTML before and don't know what to change, **ask Copilot for instructions** — something like "where is the page title in this file and what does the syntax look like?" Copilot can explain it and point at the line. **You** still make the edit by hand; Copilot must not write to anything under `workload-app/`.
 
 ```powershell
 git add workload-app/frontend/index.html

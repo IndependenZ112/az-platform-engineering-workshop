@@ -131,9 +131,10 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 
 ## Chore 15 — Prove the app pipeline by rebranding the frontend
 
-> **The single deliberate exception to the "don't touch `workload-app/`" rule.** One line, one commit, then back to platform work.
+> **You do this one by hand.** Copilot is not allowed to touch `workload-app/` under any circumstance. Make the edit yourself in the editor, then go back to platform work.
 
-- Change the `<title>` in [workload-app/frontend/index.html](workload-app/frontend/index.html) to something with your own name in it (e.g. `Azureholic Hotels`). Nothing else in `workload-app/` changes.
+- **Manually** change the `<title>` in [workload-app/frontend/index.html](workload-app/frontend/index.html) to something with your own name in it (e.g. `Azureholic Hotels`). Nothing else in `workload-app/` changes.
+- Not sure how to make the edit? **Ask Copilot for guidance** (e.g. "how do I change the page title in this HTML file?") — just don't let it edit the file for you. You type the change.
 - Commit and push to `main`.
 - On the Actions tab, the `app-deploy` workflow triggers: `build` → `deploy-test` → `smoke-test` → `deploy-prod` (waiting for approval).
 - After approval, opening the test and prod frontend URLs shows the new title in the browser tab.
