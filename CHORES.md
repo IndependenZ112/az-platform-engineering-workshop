@@ -24,7 +24,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Analyze the application in [workload-app/](workload-app/) end-to-end.
 - Produce an **infrastructure design** (Markdown in `docs/`, with a draw.io diagram) for hosting it on Azure on containers.
 - The design must be **Well-Architected**, **scale-to-zero where possible**, and use **private endpoints for every PaaS service.**.
-- The plan should be detailed enough that the next chore can implement it without re-opening architectural decisions.
+- The plan should be detailed enough that a follow-up implementation can build it without re-opening architectural decisions.
 - **No Bicep is written in this chore** — output is design only.
 
 ## Chore 4 — Implement the workload infrastructure in Bicep
@@ -42,7 +42,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Execute the deploy script. Re-run it and confirm the second run's what-if is a **no-op**.
 - Verify the public surface is **only** the frontend FQDN and the container registry.
 - Verify private DNS resolves to private IPs from inside the spoke.
-- Do **not** deploy the container images yet — the next chore covers that.
+- Do **not** deploy the container images yet — that is a follow-up chore.
 
 ## Chore 6 — Build the container images and roll them out
 
@@ -50,14 +50,14 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
   - `Dockerfile.backend` for [workload-app/backend/HotelBooking.Api/](workload-app/backend/HotelBooking.Api/).
   - `Dockerfile.frontend` for [workload-app/frontend/](workload-app/frontend/), served by nginx with SPA fallback and `/api/` reverse-proxied to the backend's internal ingress.
 - Every `FROM` line uses **`mcr.microsoft.com`**.
-- A PowerShell script `dockerfiles/Build-And-Deploy.ps1` does the full rollout: reads outputs from Chore 5, logs in to ACR, builds with **`az acr build`**, tags with `:latest` and the short Git SHA, and updates each container app to the new image.
+- A PowerShell script `dockerfiles/Build-And-Deploy.ps1` does the full rollout: reads outputs from the workload infrastructure deployment, logs in to ACR, builds with **`az acr build`**, tags with `:latest` and the short Git SHA, and updates each container app to the new image.
 - The script is **idempotent**.
 - After rollout, the frontend FQDN serves the SPA, `/api/hotels` returns JSON, and a booking POST works end-to-end.
 - **You do not edit `workload-app/`.**
 
 ## Chore 7 — Add a production environment alongside test
 
-- The Chore 4 Bicep is **parameterised by environment** (`test`, `prod`).
+- The workload-infrastructure Bicep is **parameterised by environment** (`test`, `prod`).
 - Each environment lands in its own resource group (`rg-workload-01-test`, `rg-workload-01-prod`) with **non-overlapping spoke address spaces**.
 - **Scaling profile per environment**:
   - **test**: `minReplicas = 0`.
