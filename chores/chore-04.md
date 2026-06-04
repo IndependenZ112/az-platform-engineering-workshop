@@ -1,5 +1,6 @@
 # Chore 4 — Implement the workload infrastructure in Bicep
 
+- Use the design in the /docs folder
 - All Bicep lives under `infra/workload-01/` and **uses Azure Verified Modules** wherever one exists.
 - Resource names follow **Microsoft CAF**.
 - Identity is wired end-to-end with **user-assigned managed identities**; **no secrets** in parameters, outputs, or config.
