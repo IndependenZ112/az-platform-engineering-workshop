@@ -7,6 +7,6 @@
 - The plan should be detailed enough that a follow-up implementation can build it without re-opening architectural decisions.
 - Do not peek at future chores, just design with the requirements here.
 - **No Bicep is written in this chore** — output is design only.
-- Review the design and **challenge things you do not agree with**.
+- Review the design and **challenge things you do not agree with**. Have a conversation when you need to.
 
 Stuck or want to check your work? See [details-03.md](details-03.md).
