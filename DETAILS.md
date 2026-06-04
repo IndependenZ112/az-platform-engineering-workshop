@@ -278,45 +278,11 @@ First chore that **destroys** deployed resources. Run every `az group delete` / 
 
 ---
 
-## Chore 9 — Make sure you have a usable GitHub account
+## Chore 9 — Publish your work to your own GitHub repo
 
 ### Background
 
-Chores from here use GitHub for collaboration (repos, branches, PRs, Actions). You have two options:
-
-- **Option A — personal account on [github.com](https://github.com/).** Recommended if you don't have one — it follows you between jobs.
-- **Option B — your corporate GHEC account**, *provided* your org allows you to create new repos. If it locks repo creation down to admins, fall back to Option A.
-
-### Hints
-
-- Quick check: open [github.com/new](https://github.com/new) and confirm the form loads with at least one owner in the **Owner** dropdown where you have create rights. Don't actually create the repo yet — that's Chore 10.
-- Option A signup: [github.com/signup](https://github.com/signup), use a **personal** email, pick the **Free** plan.
-- Enable **2FA** at [github.com/settings/security](https://github.com/settings/security) using an authenticator app or hardware key. Save recovery codes.
-- Configure commit identity:
-
-  ```powershell
-  git config --global user.name  "<your name>"
-  git config --global user.email "<the email or the noreply GitHub address>"
-  ```
-
-  Prefer GitHub's [noreply email](https://docs.github.com/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/setting-your-commit-email-address) (`<id>+<username>@users.noreply.github.com`).
-- Verify which account VS Code / `gh` is using — not a second account that happens to be active in the same browser. `gh auth status`.
-
-### Outcome
-
-You can sign in to GitHub as the intended account, create a new repo, and your commits will be attributed correctly with 2FA in place.
-
-### Workplace tip
-
-If you keep both a personal account and a corporate GHEC identity on the same laptop, they live alongside each other — they're separate logins, not a merge. Use a browser profile or VS Code profile to keep them apart.
-
----
-
-## Chore 10 — Publish your work to your own GitHub repo
-
-### Background
-
-So far you've been working in a local clone of [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop) with no write access. Time to take ownership: create a repo under the account from Chore 9, swap `origin` over, push everything. Clean break — no `upstream`, no fork relationship.
+So far you've been working in a local clone of [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop) with no write access. Time to take ownership: create a repo under your own GitHub account, swap `origin` over, push everything. Clean break — no `upstream`, no fork relationship.
 
 ### Hints
 
@@ -352,7 +318,7 @@ git remote -v
 git push -u origin main
 ```
 
-Verify the round-trip in the browser: commit graph matches `git log --oneline`, last commit's author is the Chore 9 identity, no secrets or local-only artifacts (`*.tfstate`, `*.pem`, `bin/`, `obj/`). If anything leaked, scrub with [`git filter-repo`](https://github.com/newren/git-filter-repo) and force-push **once** before anyone clones the repo.
+Verify the round-trip in the browser: commit graph matches `git log --oneline`, last commit's author is your GitHub identity, no secrets or local-only artifacts (`*.tfstate`, `*.pem`, `bin/`, `obj/`). If anything leaked, scrub with [`git filter-repo`](https://github.com/newren/git-filter-repo) and force-push **once** before anyone clones the repo.
 
 ### Outcome
 
@@ -364,7 +330,7 @@ Without `upstream`, you won't see new chores added to [azureholic/az-platform-en
 
 ---
 
-## Chore 11 — Staged infra deploy workflow
+## Chore 10 — Staged infra deploy workflow
 
 ### Background
 
@@ -406,11 +372,11 @@ You only have one subscription, so test and prod are different **resource groups
 
 ---
 
-## Chore 12 — Build-once, promote-everywhere app workflow
+## Chore 11 — Build-once, promote-everywhere app workflow
 
 ### Background
 
-Chore 11 handles infra; this handles the application. The rule is simple: **build each container image exactly once, then deploy that same image — same tag, same digest, byte-for-byte — to test and then to prod.** Prod must never see a freshly-rebuilt image, because a rebuild is a new artifact that hasn't been verified anywhere.
+Chore 10 handles infra; this handles the application. The rule is simple: **build each container image exactly once, then deploy that same image — same tag, same digest, byte-for-byte — to test and then to prod.** Prod must never see a freshly-rebuilt image, because a rebuild is a new artifact that hasn't been verified anywhere.
 
 ### Hints
 
@@ -425,7 +391,7 @@ Four-job workflow, all chained with `needs:`:
 
 Other essentials:
 
-- **Reuse the per-env OIDC app registrations from Chore 11.**
+- **Reuse the per-env OIDC app registrations from Chore 10.**
 - Build is gated by `if: github.event.inputs.image_tag == ''` (or equivalent) so a `workflow_dispatch` with an explicit `image_tag` **skips the build entirely** and goes straight to redeploy. Covers two scenarios with one mechanism: redeploying yesterday's good image after a bad one, and rolling prod to an older tag while you investigate.
 - Each deploy job writes `backend → <registry>/<repo>@<digest>` and `frontend → <registry>/<repo>@<digest>` to `$GITHUB_STEP_SUMMARY` so the prod reviewer can eyeball it.
 - A multi-subscription setup would add `az acr import` between test and prod registries to copy the **same digest**. You still wouldn't rebuild.
@@ -440,15 +406,15 @@ Every rebuild creates a new artifact: base-image patches, transient package mirr
 
 ### Why two pipelines, not one
 
-Infra (Chore 11) and app (this chore) move at different speeds and have different blast radius. Separate workflows mean a typo in Bicep can't accidentally redeploy the app, and a hotfix container build doesn't drag a half-finished infra change along. Both pipelines share the same OIDC app registrations and the same `test` / `prod` environments, so the security model stays consistent.
+Infra (Chore 10) and app (this chore) move at different speeds and have different blast radius. Separate workflows mean a typo in Bicep can't accidentally redeploy the app, and a hotfix container build doesn't drag a half-finished infra change along. Both pipelines share the same OIDC app registrations and the same `test` / `prod` environments, so the security model stays consistent.
 
 ---
 
-## Chore 13 — Commit and push the workflows
+## Chore 12 — Commit and push the workflows
 
 ### Background
 
-Chores 11 and 12 produced two workflow files (`.github/workflows/infra-deploy.yml`, `.github/workflows/app-deploy.yml`) sitting as **uncommitted local changes**. They can't run until they're on `main` of your remote — GitHub Actions reads workflows from the repo, not your laptop.
+Chores 10 and 11 produced two workflow files (`.github/workflows/infra-deploy.yml`, `.github/workflows/app-deploy.yml`) sitting as **uncommitted local changes**. They can't run until they're on `main` of your remote — GitHub Actions reads workflows from the repo, not your laptop.
 
 ### Hints
 
@@ -466,13 +432,13 @@ Commit cleanly — one commit per workflow:
 
 ```powershell
 git add .github/workflows/infra-deploy.yml
-git commit -m "ci: add staged infra deploy workflow (chore 11)"
+git commit -m "ci: add staged infra deploy workflow (chore 10)"
 
 git add .github/workflows/app-deploy.yml
-git commit -m "ci: add build-once app deploy workflow (chore 12)"
+git commit -m "ci: add build-once app deploy workflow (chore 11)"
 
 git add README.md docs/
-git commit -m "docs: document chores 11-13"
+git commit -m "docs: document chores 10-12"
 
 git push origin main
 ```
@@ -494,15 +460,15 @@ Both `infra-deploy` and `app-deploy` appear on the Actions tab with status `acti
 
 ### Why this is its own chore
 
-"Add a workflow file" and "make the workflow runnable" are not the same thing. A workflow that only exists on your laptop is just YAML — it doesn't gate anything, deploy anything, or show up on the Actions tab. This chore is the bridge: it turns the artifacts from Chores 11 and 12 into actual CI/CD.
+"Add a workflow file" and "make the workflow runnable" are not the same thing. A workflow that only exists on your laptop is just YAML — it doesn't gate anything, deploy anything, or show up on the Actions tab. This chore is the bridge: it turns the artifacts from Chores 10 and 11 into actual CI/CD.
 
 ---
 
-## Chore 14 — Prove the infra pipeline by retagging the workload
+## Chore 13 — Prove the infra pipeline by retagging the workload
 
 ### Background
 
-The infra pipeline from Chore 11 is wired up but you haven't seen it react to a real change. The cheapest, safest proof is a **trivial, observable** edit — change or add a `tags` value. Tags don't move resources, don't restart anything, and `what-if` makes the diff easy to spot.
+The infra pipeline from Chore 10 is wired up but you haven't seen it react to a real change. The cheapest, safest proof is a **trivial, observable** edit — change or add a `tags` value. Tags don't move resources, don't restart anything, and `what-if` makes the diff easy to spot.
 
 ### Hints
 
@@ -534,7 +500,7 @@ If the workflow does **not** trigger:
 
 1. The commit only touched files outside the `paths:` filter (`git show --stat HEAD`).
 2. You pushed to a branch, not `main` (`git log origin/main -1`).
-3. The workflow file didn't reach `main` in Chore 13 — confirm on github.com.
+3. The workflow file didn't reach `main` in Chore 12 — confirm on github.com.
 
 ### Outcome
 
@@ -549,11 +515,11 @@ A tag change is the smallest possible "real" infra edit: it exercises lint → O
 
 ---
 
-## Chore 15 — Prove the app pipeline by rebranding the frontend
+## Chore 14 — Prove the app pipeline by rebranding the frontend
 
 ### Background
 
-Chore 14 proved the **infra** pipeline. This proves the **app** pipeline — make the smallest possible, visually obvious edit to the frontend, push it, watch `app-deploy` build a new image, deploy to test, smoke test, wait for prod approval, roll out to prod. When you load the site in the browser, your change is staring back at you.
+Chore 13 proved the **infra** pipeline. This proves the **app** pipeline — make the smallest possible, visually obvious edit to the frontend, push it, watch `app-deploy` build a new image, deploy to test, smoke test, wait for prod approval, roll out to prod. When you load the site in the browser, your change is staring back at you.
 
 > **You do this one by hand.** Copilot is not allowed to create, edit, move, or delete anything under `workload-app/` — not even for this chore. Open `index.html` in the editor yourself, change one line, save, commit. Treat it as a one-time stunt: rebrand the title, ship it, move on. **Do not ask Copilot to make the edit, and do not start adding features to the app.**
 
@@ -569,7 +535,7 @@ git commit -m "app(frontend): rebrand title to Azureholic Hotels"
 git push origin main
 ```
 
-`infra-deploy` does **not** run (its filter is `infra/**`) — exactly the separation Chore 12 was built for.
+`infra-deploy` does **not** run (its filter is `infra/**`) — exactly the separation Chore 11 was built for.
 
 Watch the run (`gh run watch` or the web UI):
 
@@ -585,13 +551,13 @@ az containerapp show -g rg-workload-01-test -n ca-hotelweb-test-weu-001 --query 
 az containerapp show -g rg-workload-01-prod -n ca-hotelweb-prod-weu-001 --query "properties.template.containers[0].image"
 ```
 
-Both must end in `@sha256:<same-digest>`. If not, something rebuilt between test and prod — re-read Chore 12.
+Both must end in `@sha256:<same-digest>`. If not, something rebuilt between test and prod — re-read Chore 11.
 
 If the workflow does **not** trigger or fails:
 
 1. Commit only touched files outside `workload-app/**` (`git show --stat HEAD`).
 2. `build` failed because the frontend `Dockerfile` `FROM` line points at Docker Hub instead of `mcr.microsoft.com` — fix per the repo's container-image rule.
-3. `deploy-test` failed at OIDC — same federated-credential subject check as Chore 14, but for the `test` environment.
+3. `deploy-test` failed at OIDC — same federated-credential subject check as Chore 13, but for the `test` environment.
 4. Smoke test fails because the new revision isn't taking traffic yet — Container Apps takes a few seconds to swap revisions; add a short retry loop if the workflow doesn't already.
 
 ### Outcome
@@ -600,4 +566,4 @@ Test and prod URLs both show the new title in the browser tab. `az containerapp 
 
 ### Why a title change
 
-The `<title>` tag is the cheapest possible "real" app edit: one byte of meaningful change, visible to a human without logging into anything, and it forces the full build-once / promote-everywhere pipeline to run end-to-end. That's the whole reason Chore 12 exists.
+The `<title>` tag is the cheapest possible "real" app edit: one byte of meaningful change, visible to a human without logging into anything, and it forces the full build-once / promote-everywhere pipeline to run end-to-end. That's the whole reason Chore 11 exists.

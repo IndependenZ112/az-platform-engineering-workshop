@@ -24,10 +24,9 @@ This repo is the **Azure Platform Engineering workshop**. It is intentionally sp
 
 ## What this workshop is about
 
-Hub-and-spoke Azure Landing Zone with **distributed Private DNS zones** (each workload resource group owns its own Private DNS zones, linked back to the hub vnet). Two chores:
+Hub-and-spoke Azure Landing Zone with **distributed Private DNS zones** (each workload resource group owns its own Private DNS zones, linked back to the hub vnet). The participant works through a sequence of chores that cover spoke onboarding, workload design, Bicep implementation with AVM, deployment, container build/rollout, multi-environment support, and CI/CD with OIDC. See [CHORES.md](../CHORES.md) for the authoritative, ordered list of chores and [DETAILS.md](../DETAILS.md) for hints.
 
-- **Chore 1 — Spoke onboarding:** stand up a new spoke (vnet, peering to hub, route tables, Private DNS zones) using Bicep + AVM.
-- **Chore 2 — Workload investigation & design:** read `workload-app/`, then produce a Markdown design document that includes an embedded architecture diagram (use the `drawio` skill — export PNG with embedded XML). Requirements: Well-Architected, scale-to-zero where possible, **private endpoints for all services except the container registry, monitoring and the public-facing frontend**. The plan is the deliverable; no infra code is required for this chore. 
+Architecture diagrams referenced from Markdown design docs must be authored via the **`drawio` skill** and exported as PNG with embedded XML so the source stays editable.
 
 ## How to work in this repo
 
@@ -46,7 +45,8 @@ Never edit anything inside `workload-app/` — there is no "ask first" path for 
 
 ## other important instructions
 - the container registry, monitoring, and the public frontend are the only workload components that can have a public endpoint. Every other service must be locked down with private endpoints and/or service endpoints, and all inter-service communication must stay on the Microsoft backbone via Private DNS and peering.
-- you must make sure the local az cli principal has RBAC permissions to deploy all the resources in the Bicep templates, including the ability to create role assignments for user-assigned managed identities. If any permission is missing, the deployment will fail. Use `az role assignment create` to grant the necessary permissions before deployment. Also use this principal as an administrator for SQL Db.
+- you must make sure the local az cli principal has RBAC permissions to deploy all the resources in the Bicep templates, including the ability to create role assignments for user-assigned managed identities. If any permission is missing, the deployment will fail. Use `az role assignment create` to grant the necessary permissions before deployment.
+- the **Azure SQL Entra admin must be the workload's user-assigned managed identity**, not the local deploying principal. SQL is reachable only through its private endpoint from inside the spoke, so the deploying principal cannot (and should not) be the data-plane admin. Wire the MI as the Entra admin in Bicep and let the application authenticate passwordlessly.
 
 ## Self-check before you finish a turn
 

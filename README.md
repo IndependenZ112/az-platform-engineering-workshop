@@ -70,7 +70,9 @@ This creates `rg-platform` with a hub VNet (`vnet-hub`, `192.168.100.0/24`) and 
 
 Each chore in [CHORES.md](CHORES.md) is meant to be solved **with Copilot in agent mode**, not by copy-pasting a finished solution. The loop is always the same: share the chore as the prompt, let Copilot draft IaC and scripts using the MCP servers, review the diff, deploy, verify, iterate. If you get stuck or want to check your work, open [DETAILS.md](DETAILS.md) for hints, expected outcomes, and background.
 
+> If you don't know how to approach a chore, ask Copilot to help you! It is an execelent troubleshooter and can run any CLI command for you to achieve your goals. Be explicit in your instructions.
+
 Two non-negotiables that come from [.github/copilot-instructions.md](.github/copilot-instructions.md):
 
-1. **Never create, edit, move, or delete anything under `workload-app/`** — the platform team treats it as immutable. Dockerfiles and other build assets live under `dockerfiles/`. Chore 15 requires a one-line edit inside `workload-app/`, but you make it **by hand** in the editor — Copilot is not allowed to touch the folder.
+1. **Never create, edit, move, or delete anything under `workload-app/`** — the platform team treats it as immutable. Dockerfiles and other build assets live under `dockerfiles/`. Chore 14 requires a one-line edit inside `workload-app/`, but you make it **by hand** in the editor — Copilot is not allowed to touch the folder.
 2. **All container base images come from `mcr.microsoft.com`**, not Docker Hub.

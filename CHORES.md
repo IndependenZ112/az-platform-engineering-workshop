@@ -23,7 +23,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 
 - Analyze the application in [workload-app/](workload-app/) end-to-end.
 - Produce an **infrastructure design** (Markdown in `docs/`, with a draw.io diagram) for hosting it on Azure on containers.
-- The design must be **Well-Architected**, **scale-to-zero where possible**, and use **private endpoints for every PaaS service.**.
+- The design must be **Well-Architected**, **scale-to-zero**, and use **private endpoints for every PaaS service.**.
 - The plan should be detailed enough that a follow-up implementation can build it without re-opening architectural decisions.
 - **No Bicep is written in this chore** — output is design only.
 
@@ -77,14 +77,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - After rebuild, the hub shows exactly two workload peerings (`...-test`, `...-prod`), both `Connected`, no orphans.
 - Design doc and diagram are updated **before** any Bicep changes.
 
-## Chore 9 — Make sure you have a usable GitHub account
-
-- You can sign in to GitHub with an account that lets you **create a new repository**.
-- **Two-factor authentication is enabled.**
-- Your **commit identity** (`git config --global user.name` / `user.email`) is set correctly.
-- You can **authenticate to GitHub from VS Code** (or via `gh auth login`) as the intended account.
-
-## Chore 10 — Publish your work to your own GitHub repo
+## Chore 9 — Publish your work to your own GitHub repo
 
 - **Review the local diff** before publishing; nothing surprising or secret gets pushed.
 - Stage your work into a handful of **clean commits**.
@@ -93,7 +86,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Push everything to `main` and set the upstream.
 - Verify in the browser that the commit graph, author, and contents look right and contain no secrets.
 
-## Chore 11 — Automate infra deployment with a staged GitHub Actions workflow
+## Chore 10 — Automate infra deployment with a staged GitHub Actions workflow
 
 - A workflow at `.github/workflows/infra-deploy.yml` triggers on `push` to `main` (with a `paths:` filter on `infra/**`) and on `workflow_dispatch`.
 - Auth uses **OIDC federation** — no long-lived secrets — with **separate app registrations per environment**.
@@ -102,7 +95,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Every deploy job runs `what-if` first and posts the output to the job summary.
 - First end-to-end run: test deploys without prompting, prod waits in **Waiting** until you approve.
 
-## Chore 12 — Automate app container deployment with a build-once, promote-everywhere workflow
+## Chore 11 — Automate app container deployment with a build-once, promote-everywhere workflow
 
 - A workflow at `.github/workflows/app-deploy.yml` triggers on `push` to `main` (`paths:` filter on `workload-app/**` and `dockerfiles/**`) and on `workflow_dispatch`.
 - Four jobs: **`build`** → **`deploy-test`** → **`smoke-test`** → **`deploy-prod`**.
@@ -112,7 +105,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Prod is gated by the `prod` GitHub Environment's required reviewer.
 - Each deploy job writes the digest it deployed to the job summary.
 
-## Chore 13 — Commit and push the workflows, leave a clean working tree
+## Chore 12 — Commit and push the workflows, leave a clean working tree
 
 - **Inspect** the staged diff before committing — only the workflow YAMLs and related docs land.
 - Commit cleanly (one commit per workflow plus docs).
@@ -121,7 +114,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - On the **Actions tab**, both workflows are listed and dispatchable.
 - On **Settings → Environments**, `test` and `prod` exist with federated credentials, variables, and (for `prod`) required reviewers.
 
-## Chore 14 — Prove the infra pipeline by retagging the workload
+## Chore 13 — Prove the infra pipeline by retagging the workload
 
 - Pick one tag to change or add on the workload Bicep under `infra/workload-01/`.
 - The change is **minimal and reversible** — `what-if` shows only tag deltas.
@@ -129,7 +122,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 - Commit and push to `main`.
 - On the Actions tab, the `infra-deploy` workflow triggers: `lint` and `deploy-test` go green; `deploy-prod` waits for approval; after approval, both resource groups have the new tag.
 
-## Chore 15 — Prove the app pipeline by rebranding the frontend
+## Chore 14 — Prove the app pipeline by rebranding the frontend
 
 > **You do this one by hand.** Copilot is not allowed to touch `workload-app/` under any circumstance. Make the edit yourself in the editor, then go back to platform work.
 
