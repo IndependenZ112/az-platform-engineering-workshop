@@ -33,6 +33,13 @@ By the end of the workshop you will have, with GitHub Copilot doing the heavy li
 ### Tooling
 
 - **[Visual Studio Code](https://code.visualstudio.com/)**.
+- A **Git client** — on Windows install **[Git for Windows](https://git-scm.com/download/win)**:
+
+  ```powershell
+  winget install --id Git.Git -e --source winget
+  ```
+
+  macOS: `brew install git` (or use the Xcode Command Line Tools). Linux: install `git` from your distro's package manager.
 - A **GitHub Copilot** license, with the Azure and Bicep MCP servers enabled.
 - **[PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)** (deployment scripts use `#requires -Version 7.0`).
 - **[Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)**.
@@ -54,6 +61,16 @@ By the end of the workshop you will have, with GitHub Copilot doing the heavy li
 ### Accounts
 
 - A **GitHub account** that lets you create a new repository (personal account, or corporate GHEC with `Create repository` rights). Sign in to GitHub from VS Code or via `gh auth login`.
+
+## Clone this repo
+
+Clone the workshop repository to your local machine and open it in VS Code:
+
+```powershell
+git clone https://github.com/azureholic/az-platform-engineering-workshop.git
+cd az-platform-engineering-workshop
+code .
+```
 
 ## Workshop background
 
