@@ -28,7 +28,15 @@ The design document should answer:
 
 ### Outcome
 
-A short, opinionated design document in `docs/` plus a draw.io diagram, signed off and ready for a follow-up implementation chore without re-litigating decisions.
+By the end of this chore you have a **signed-off design** — a short, opinionated document in `docs/` plus a draw.io diagram — that the implementation chore can execute without re-litigating decisions. Concretely it pins down:
+
+- **What the app needs:** the backend runtime/framework and its endpoints, how the frontend is built and served, the data store, and the config/auth the app reads at startup.
+- **The Azure footprint:** the chosen container compute service (and why it fits), the container registry and how it's exposed, the private data path reusing the spoke and distributed Private DNS, and the subnet/address plan inside the spoke.
+- **Identity end-to-end:** which runtime managed identities exist and what each may do, plus the dedicated per-environment GitHub Actions deploy identity (scopes: `Owner` on its workload RG, `Network Contributor` on the hub VNet, `AcrPush` on the registry; federated-credential subject `repo:<owner>/<repo>:environment:<env>`) — named and scoped here, implemented in a follow-up chore.
+- **Naming and exposure:** every resource name carries the `test` environment segment from the start, and the only two public surfaces are the frontend and the container registry — everything else is private.
+- **WAF trade-offs:** each major decision is justified against Reliability, Security, Cost, Operations, and Performance.
+
+The design is a plan, not Bicep; the next chore turns it into a deployable template.
 
 ### Why this chore exists
 

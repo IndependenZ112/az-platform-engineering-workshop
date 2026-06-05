@@ -23,7 +23,7 @@ OIDC details (everything below was provisioned in a previous chore — this chor
 GitHub Environments do the gating, not workflow logic (also already configured):
 
 - `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`.
-- `prod`: **required reviewers** (at least one human), optional wait timer, deployment-branch policy restricted to `main`. Same four variables pointing at the prod deploy identity and `rg-workload-01-prod`.
+- `prod`: **required reviewers** (at least one human), optional wait timer. Same four variables pointing at the prod deploy identity and `rg-workload-01-prod`.
 
 Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between stages. Template is identical.
 

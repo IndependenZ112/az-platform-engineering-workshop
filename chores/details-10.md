@@ -18,19 +18,7 @@ Four-job workflow, all chained with `needs:`:
 Other essentials:
 
 - **Reuse the per-env OIDC app registrations from the previous chore.**
-- **Capture the digest from `az acr build` itself — do not re-query the registry, do not pipe through `docker inspect`.** Pin the exact one-liner so the pipeline can't silently rebuild between "capture" and "deploy":
-
-  ```bash
-  BACKEND_DIGEST=$(az acr build \
-    --registry "$ACR_NAME" \
-    --image "$BACKEND_REPO:${{ github.sha }}" \
-    --file workload-app/backend/HotelBooking.Api/Dockerfile \
-    workload-app/backend/HotelBooking.Api \
-    --query 'outputs.images[0].digest' -o tsv)
-  echo "backend-digest=$BACKEND_DIGEST" >> "$GITHUB_OUTPUT"
-  ```
-
-  `outputs.images[0].digest` returns the `sha256:...` string produced by **this** build run. Combine it with the registry/repo to get the full immutable reference (`<registry>/<repo>@sha256:...`) that every downstream job uses.
+- **Capture the digest from `az acr build` itself — do not re-query the registry, do not pipe through `docker inspect`.** The build command's `outputs.images[0].digest` returns the `sha256:...` string produced by **this** build run; read it straight into a job output (`$GITHUB_OUTPUT`). Combine it with the registry/repo to get the full immutable reference (`<registry>/<repo>@sha256:...`) that every downstream job pins to. Capturing the digest any other way opens a window where the pipeline can silently rebuild between "capture" and "deploy".
 - Build is gated by `if: github.event.inputs.image_tag == ''` (or equivalent) so a `workflow_dispatch` with an explicit `image_tag` **skips the build entirely** and goes straight to redeploy. Covers two scenarios with one mechanism: redeploying yesterday's good image after a bad one, and rolling prod to an older tag while you investigate.
 - Each deploy job writes `backend → <registry>/<repo>@<digest>` and `frontend → <registry>/<repo>@<digest>` to `$GITHUB_STEP_SUMMARY` so the prod reviewer can eyeball it.
 - A multi-subscription setup would add `az acr import` between test and prod registries to copy the **same digest**. You still wouldn't rebuild.

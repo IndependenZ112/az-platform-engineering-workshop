@@ -15,4 +15,5 @@ A new application team needs network space. As the platform team, you add a **sp
 - Resource group `rg-workload-01` exists.
 - Spoke VNet deployed in a non-overlapping range.
 - `az network vnet peering list` shows `Connected` on both sides.
-- A resource in the spoke can reach the hub address space.
+- Each peering's remote address space matches the other VNet's range. (No workload runs in the
+  spoke yet, so an end-to-end data-path test comes in a later chore once a resource exists.)

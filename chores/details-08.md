@@ -18,90 +18,28 @@ Doing this once in a script (not by clicking) means:
 
 ### Hints
 
-The script's outline:
+Write the bootstrap as a single idempotent PowerShell 7 script (every `az` / `gh` call checks-then-writes, so a re-run is a clean no-op). It should accept parameters for the workload name, the environments to provision (`test`, `prod`), the hub resource group and VNet name, the ACR (resource group + name, defaulting to a lookup in the workload RG), the location, and the repo owner/name (defaulting to values inferred from `gh repo view`).
 
-```powershell
-#requires -Version 7.0
-[CmdletBinding()]
-param(
-    [string]$WorkloadName = 'workload01',
-    [string[]]$Environments = @('test','prod'),
-    [string]$HubResourceGroup = 'rg-platform',
-    [string]$HubVnetName = 'vnet-hub',
-    [string]$AcrResourceGroup,           # default: per-env workload RG
-    [string]$AcrName,                    # default: looked up from workload RG
-    [string]$Location = 'swedencentral',
-    [string]$RepoOwner,                  # default: inferred from `gh repo view`
-    [string]$RepoName                    # default: inferred from `gh repo view`
-)
-```
-
-Per-environment loop (idempotent — every `az` / `gh` call checks-then-writes):
+Per environment, the loop does the following:
 
 1. Resolve the workload RG (`rg-$WorkloadName-$env`), the ACR (lookup if not provided), and the subscription/tenant from `az account show`.
-2. **Create the deploy identity** if missing:
+2. **Create the deploy identity** if missing — a user-assigned managed identity named `id-github-$WorkloadName-$env-$Location-001` in the workload RG.
 
-   ```powershell
-   $miName = "id-github-$WorkloadName-$env-$Location-001"
-   az identity create -g $workloadRg -n $miName -l $Location -o json
-   $mi = az identity show -g $workloadRg -n $miName -o json | ConvertFrom-Json
-   ```
-
-3. **Assign roles** (each `az role assignment create` is naturally idempotent — re-running with the same scope+principal+role is a 200):
+3. **Assign roles** (each `az role assignment create` is naturally idempotent — the same scope+principal+role re-run is a 200):
 
    - `Owner` on the workload RG (needed to create role assignments for the runtime managed identities during a deploy).
-   - `Network Contributor` on the hub VNet *resource* (not the whole hub RG):
-
-     ```powershell
-     $hubVnetId = az network vnet show -g $HubResourceGroup -n $HubVnetName --query id -o tsv
-     az role assignment create --assignee-object-id $mi.principalId --assignee-principal-type ServicePrincipal `
-         --role 'Network Contributor' --scope $hubVnetId
-     ```
-
+   - `Network Contributor` on the hub VNet **resource** — look up its resource ID and scope to that, **not** the whole hub RG.
    - `AcrPush` on the ACR resource ID (only the app workflow uses this, but the infra workflow shares the identity for simplicity).
 
-4. **Federated credential** with the GitHub Environment subject:
+4. **Federated credential** whose `subject` is exactly `repo:<owner>/<repo>:environment:<env>`, with issuer `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`. This subject string is the single most error-prone value — generate it from variables, don't type it — and pass the JSON over stdin (`--parameters @-`) so PowerShell quoting can't corrupt it. A re-run with the same `name` returns 409: prefer `az identity federated-credential update` over delete-then-create so the credential's object ID is preserved.
 
-   ```powershell
-   $fic = @{
-       name      = "gh-$RepoOwner-$RepoName-env-$env"
-       issuer    = 'https://token.actions.githubusercontent.com'
-       subject   = "repo:$RepoOwner/$($RepoName):environment:$env"
-       audiences = @('api://AzureADTokenExchange')
-   } | ConvertTo-Json -Compress
-   # Use --parameters @- so PowerShell stdin carries the JSON safely.
-   $fic | az identity federated-credential create -g $workloadRg --identity-name $miName --parameters '@-'
-   ```
-
-   Re-running with the same `name` returns 409 — catch and fall back to `az identity federated-credential update`, or just `az identity federated-credential delete` then create. (`update` is preferred; it preserves the credential's object ID.)
-
-5. **GitHub Environment + protection rules** via `gh api` (no native `gh env` create command yet):
-
-   ```powershell
-   gh api -X PUT "repos/$RepoOwner/$RepoName/environments/$env" --silent
-   if ($env -eq 'prod') {
-       $reviewerId = gh api user --jq .id
-       $body = @{
-           reviewers = @(@{ type = 'User'; id = $reviewerId })
-           deployment_branch_policy = @{ protected_branches = $true; custom_branch_policies = $false }
-       } | ConvertTo-Json -Depth 5
-       $body | gh api -X PUT "repos/$RepoOwner/$RepoName/environments/$env" --input -
-   }
-   ```
+5. **GitHub Environment** via `gh api` (there's no native `gh env` create command). Create the environment, and for `prod` add a required-reviewer protection rule; `test` stays unprotected.
 
 6. **Environment variables** (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`) via `gh variable set --env $env`. These are **variables, not secrets** — they're not sensitive and can show up in logs without consequence.
 
 ### Verification
 
-```powershell
-az identity federated-credential list -g rg-workload-01-test --identity-name id-github-workload01-test-swedencentral-001 -o table
-az identity federated-credential list -g rg-workload-01-prod --identity-name id-github-workload01-prod-swedencentral-001 -o table
-gh variable list --env test
-gh variable list --env prod
-gh api repos/:owner/:repo/environments | ConvertFrom-Json | Select-Object -ExpandProperty environments | Format-Table name, protection_rules
-```
-
-You should see exactly one federated credential per identity, four variables per environment, and `prod` carrying a `required_reviewers` and `branch_policy` rule.
+Confirm — with `az identity federated-credential list`, `gh variable list --env`, and `gh api .../environments` — that each deploy identity lists exactly **one** federated credential with the right `repo:<owner>/<repo>:environment:<env>` subject, each environment carries the **four** variables, and `prod` shows a `required_reviewers` protection rule.
 
 ### Outcome
 

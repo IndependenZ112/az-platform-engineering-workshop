@@ -8,35 +8,15 @@ Prod must run **at least 3 replicas spread across availability zones**, no scale
 
 ### Hints
 
-**Introduce the `environmentName` parameter.** In `main.bicep`:
+**Introduce an `environmentName` parameter** (allowed values `test` / `prod`) in `main.bicep` and use it wherever a name was hardcoded to `test` in Chore 3. The `test` deployment keeps every existing name byte-for-byte (`rg-workload-01-test`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, …). A `what-if` against the `test` RG **must show zero changes** — if it shows renames or deletes, you've broken the contract and the test environment will be torn down on the next deploy.
 
-```bicep
-@allowed([ 'test', 'prod' ])
-param environmentName string
-```
+**Parameterise every environment-specific value.** Replace each prod-vs-test difference with a parameter, then pass it through to the AVM modules. The differences to cover (with example test → prod values):
 
-Use it wherever a name was hardcoded to `test` in Chore 3. The `test` deployment keeps every existing name byte-for-byte (`rg-workload-01-test`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, …). A `what-if` against the `test` RG **must show zero changes** — if it shows renames or deletes, you've broken the contract and the test environment will be torn down on the next deploy.
+- **Networking:** spoke address space (`10.10.0.0/22` → `10.20.0.0/22`).
+- **Container Apps:** `minReplicas` (0 → 3), `maxReplicas` (3 → 10), ACA environment zone redundancy (false → true).
+- **Azure SQL:** SKU (e.g. `GP_S_Gen5_1` → `GP_S_Gen5_2`, or `BC_Gen5_2`), zone redundancy (false → true), auto-pause delay (60 → -1 / disabled).
 
-**Parameterise every environment-specific value.** Replace each prod-vs-test difference with a parameter. Suggested shape:
-
-```bicep
-// Networking
-param spokeAddressSpace string                 // test: '10.10.0.0/22'  prod: '10.20.0.0/22'
-
-// Container Apps
-@minValue(0)
-param minReplicas int                          // test: 0              prod: 3
-@minValue(1)
-param maxReplicas int                          // test: 3              prod: 10
-param acaEnvZoneRedundant bool                 // test: false          prod: true
-
-// Azure SQL
-param sqlSkuName string                        // test: 'GP_S_Gen5_1'  prod: 'GP_S_Gen5_2' (or BC_Gen5_2)
-param sqlZoneRedundant bool                    // test: false          prod: true
-param sqlAutoPauseDelay int                    // test: 60             prod: -1 (disabled)
-```
-
-…then pass them through to the AVM modules. **No `if (environmentName == 'prod') { ... } else { ... }` branches in the template.** If you find yourself writing one, the value belongs in a parameter.
+**No `if (environmentName == 'prod') { ... } else { ... }` branches in the template.** If you find yourself writing one, the value belongs in a parameter.
 
 Two parameter files alongside `main.bicep`:
 
