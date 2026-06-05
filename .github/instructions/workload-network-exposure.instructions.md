@@ -39,7 +39,7 @@ Concretely, in Bicep this means **none** of the following may appear for ACR or 
 
 Everything else in the workload spoke is **private-only** and reachable through private endpoints + Private DNS zones linked back to the hub vnet. Non-exhaustive list:
 
-- Azure SQL (private endpoint only; Entra admin = workload UAMI; deploying principal has no data-plane access)
+- Azure SQL (private endpoint only; Entra admin = workload managed identity; deploying principal has no data-plane access)
 - Key Vault
 - Storage accounts owned by the workload (blob/file/queue/table)
 - App Configuration

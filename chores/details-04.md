@@ -42,7 +42,7 @@ The Bicep from the previous chore is reviewed. Time to actually land it in the s
     ```
 
     If `getent`/`nslookup` aren't present in the placeholder image, defer this check to the rollout chore where the real backend image runs.
-  - Container apps exist with `minReplicas = 0`, registry has `adminUserEnabled = false`, both UAMIs hold `AcrPull` on the registry scope.
+  - Container apps exist with `minReplicas = 0`, registry has `adminUserEnabled = false`, both managed identities hold `AcrPull` on the registry scope.
   - SQL database in **paused** state shortly after deploy (auto-pause = 60 min).
 - **Don't deploy container images yet** — container apps will spin up with the placeholder `mcr.microsoft.com/k8se/quickstart` image. That's expected; the next chore fixes it.
 

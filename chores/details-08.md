@@ -49,7 +49,7 @@ Per-environment loop (idempotent — every `az` / `gh` call checks-then-writes):
 
 3. **Assign roles** (each `az role assignment create` is naturally idempotent — re-running with the same scope+principal+role is a 200):
 
-   - `Owner` on the workload RG (needed to create role assignments for the runtime UAMIs during a deploy).
+   - `Owner` on the workload RG (needed to create role assignments for the runtime managed identities during a deploy).
    - `Network Contributor` on the hub VNet *resource* (not the whole hub RG):
 
      ```powershell
@@ -113,4 +113,4 @@ OIDC bootstrap fails silently in obvious-looking ways: a typo in the subject str
 
 ### Safety note
 
-The `Owner` role on the workload RG is intentional but **narrowly scoped**: the deploy identity needs to grant `AcrPull` to runtime UAMIs during a deploy, which requires write access on `Microsoft.Authorization/roleAssignments` at that scope. It has **no rights** outside the workload RG except `Network Contributor` on the single hub VNet resource. Do not widen the scope to the subscription — `User Access Administrator` on the workload RG is an acceptable alternative if you want to split create-resources from grant-roles, but the simpler `Owner` is fine for the workshop.
+The `Owner` role on the workload RG is intentional but **narrowly scoped**: the deploy identity needs to grant `AcrPull` to runtime managed identities during a deploy, which requires write access on `Microsoft.Authorization/roleAssignments` at that scope. It has **no rights** outside the workload RG except `Network Contributor` on the single hub VNet resource. Do not widen the scope to the subscription — `User Access Administrator` on the workload RG is an acceptable alternative if you want to split create-resources from grant-roles, but the simpler `Owner` is fine for the workshop.

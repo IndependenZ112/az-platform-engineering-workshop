@@ -22,7 +22,7 @@ Infrastructure is up but the container apps are still serving placeholder conten
 
 - `curl https://<frontend-fqdn>/` returns the SPA's `index.html`.
 - `curl https://<frontend-fqdn>/api/hotels` returns JSON.
-- A booking POST works (backend reaches SQL via private endpoint with its UAMI).
+- A booking POST works (backend reaches SQL via private endpoint with its managed identity).
 - Application Insights shows a single distributed trace browser → frontend → backend → SQL.
 
 ### Note for the platform engineer

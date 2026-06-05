@@ -4,7 +4,7 @@
 - Produce an **infrastructure design** (Markdown in `docs/`, with a draw.io diagram) for hosting it on Azure on containers.
 - **Frame the design as a well-architected `test` environment for the team.** Every CAF resource name carries the `test` environment token from day one (e.g. `rg-workload-01-test`, `ca-hotelapi-test-<region>-001`).
 - The design must be **Well-Architected**, **scale-to-zero**, and use **private endpoints for every PaaS service**.
-- The design must include a **dedicated GitHub Actions deploy identity per environment** (separate from any runtime UAMI on the container apps), with named RBAC scopes and a federated-credential subject pattern of `repo:<owner>/<repo>:environment:<env>`. Implementation lives in a follow-up chore; the design just names the identity, its scopes, and why it's distinct from the runtime identities.
+- The design must include a **dedicated managed identity for CI/CD**, separate from any runtime managed identity on the container apps.
 - The design should contain decision records with rationale for choices that are made.
 - The plan should be detailed enough that a follow-up implementation can build it without re-opening architectural decisions.
 - Do not peek at future chores, just design with the requirements here.
