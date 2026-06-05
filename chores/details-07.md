@@ -1,24 +1,49 @@
-# Chore 7 — Add a production environment alongside test
+# Chore 7 — Publish your work to your own GitHub repo
 
 ### Background
 
-The application team needs a real **production** environment alongside test. Prod must run **at least 3 replicas spread across availability zones**, no scale-to-zero. Both environments coexist in the same subscription.
+So far you've been working in a local clone of [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop) with no write access. Time to take ownership: create a repo under your own GitHub account, swap `origin` over, push everything. Clean break — no `upstream`, no fork relationship.
 
 ### Hints
 
-- Single `environmentName` parameter with allowed values `test` / `prod`, or two `*.bicepparam` files (`workload.test.bicepparam`, `workload.prod.bicepparam`). **No code fork** — same template produces both.
-- Each environment in its own RG (`rg-workload-01-test`, `rg-workload-01-prod`) with **non-overlapping spoke address spaces**. Both spokes peer to the same hub.
-- CAF naming carries the environment token (`ca-hotelapi-test-weu-001` vs `ca-hotelapi-prod-weu-001`).
-- ACA env **`zoneRedundant: true`** is set at environment creation time and cannot be flipped later — so prod gets its **own** ACA environment.
-- SQL: prod uses a SKU that supports **zone redundancy** (e.g. General Purpose serverless with `zoneRedundant: true`, or provisioned Business Critical) and does **not** auto-pause.
-- `Deploy-Workload.ps1` takes `-Environment test|prod` and selects the matching RG / parameter file / address space. Preflight runs before every deploy.
+Review before publishing:
+
+```powershell
+git status
+git diff --stat origin/main
+git log --oneline origin/main..HEAD
+```
+
+Anything surprising (large generated files, secrets, `.bicepparam` with real subscription IDs, local-only paths) gets fixed or `.gitignore`d **before** the first push.
+
+If your work is one giant uncommitted blob, split it into a handful of logical commits (e.g. `chore-1 spoke`, `chore-2 workload design`, `chore-3 workload infra`). Conventional Commits is fine but not required.
+
+Create the empty remote — **do not** initialise with README/.gitignore/license:
+
+```powershell
+# Option A — GitHub CLI
+gh repo create <your-handle-or-org>/az-platform-engineering-workshop `
+    --private `
+    --description "My run through the Azure Platform Engineering workshop" `
+    --disable-wiki
+
+# Option B — https://github.com/new (Owner + Name + Private, no init files)
+```
+
+Swap `origin`:
+
+```powershell
+git remote set-url origin https://github.com/<your-handle-or-org>/az-platform-engineering-workshop.git
+git remote -v
+git push -u origin main
+```
+
+Verify the round-trip in the browser: commit graph matches `git log --oneline`, last commit's author is your GitHub identity, no secrets or local-only artifacts (`*.tfstate`, `*.pem`, `bin/`, `obj/`). If anything leaked, scrub with [`git filter-repo`](https://github.com/newren/git-filter-repo) and force-push **once** before anyone clones the repo.
 
 ### Outcome
 
-- Deploying test then prod (or prod then test) leaves both workloads healthy on their own frontend FQDNs.
-- Each environment's what-if shows only the resources for that environment.
-- Design doc + diagram are updated to show both environments and the zone-spread prod topology.
+Your repo is on GitHub under an account you control, with clean history and clean commit identity. Future `git push` / `git pull` are one-liners.
 
-### Reliability note
+### Heads up
 
-Zone redundancy on Container Apps and Azure SQL is **only available in regions with 3 availability zones**. Confirm your region qualifies (e.g. `westeurope`, `northeurope`, `eastus2`). If not, either move prod to one that does or call out the limitation in the updated design.
+Without `upstream`, you won't see new chores added to [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop). Add it on demand: `git remote add upstream https://github.com/azureholic/az-platform-engineering-workshop.git` and cherry-pick what you need.

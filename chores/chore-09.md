@@ -1,10 +1,10 @@
-# Chore 9 — Publish your work to your own GitHub repo
+# Chore 9 — Automate infra deployment with a staged GitHub Actions workflow
 
-- **Review the local diff** before publishing; nothing surprising or secret gets pushed.
-- Stage your work into a handful of **clean commits**.
-- Create a new **empty** repo under your account — do **not** initialise it with README/.gitignore/license.
-- Swap the existing `origin` remote to point at your new repo (no `upstream`, no fork relationship).
-- Push everything to `main` and set the upstream.
-- Verify in the browser that the commit graph, author, and contents look right and contain no secrets.
+- A workflow at `.github/workflows/infra-deploy.yml` triggers on `push` to `main` (with a `paths:` filter on `infra/**`) and on `workflow_dispatch`.
+- Auth uses **OIDC federation** — no long-lived secrets — reusing the per-environment deploy identities and federated credentials wired up in a previous chore.
+- Three jobs: **`lint`** → **`deploy-test`** → **`deploy-prod`**, chained with `needs:`.
+- **GitHub Environments** do the gating (already created in a previous chore): `test` (no protection), `prod` (required reviewers, branch policy `main`).
+- Every deploy job runs `what-if` first and posts the output to the job summary.
+- First end-to-end run: test deploys without prompting, prod waits in **Waiting** until you approve.
 
 Stuck or want to check your work? See [details-09.md](details-09.md).

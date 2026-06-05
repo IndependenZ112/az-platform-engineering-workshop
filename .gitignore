@@ -111,3 +111,6 @@ temp/
 *.key
 *.crt
 secrets/
+
+# ── Local working notes (not part of the workshop) ───────────────────────────
+WORKSHOP-REVIEW-TODO.md

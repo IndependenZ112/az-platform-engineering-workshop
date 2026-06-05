@@ -1,33 +1,102 @@
-# Chore 3 — Investigate the workload and design its infrastructure
+# Chore 3 — Implement the workload infrastructure in Bicep
 
 ### Background
 
-The application team has dropped a workload in [workload-app/](../workload-app/) — a .NET 10 Minimal API backend and a React/Vite frontend, with data persisted in SQL Server. Before deploying anything, the platform team **understands the app** and **designs the Azure footprint** that will host it. This chore is design only — the output is a plan, not Bicep.
+The design from the previous chore is signed off. Turn it into **deployable Bicep** that lands the workload in the existing spoke — without re-opening architectural decisions.
 
 ### Hints
 
-The design document should answer:
+- Bicep under `infra/workload-01/`. Use AVM wherever a module exists; raw `Microsoft.*` only with an inline comment explaining the gap.
+- CAF naming — see [.github/instructions/azure-naming.instructions.md](../.github/instructions/azure-naming.instructions.md). Every name embeds the `test` environment segment (`rg-workload-01-test`, `vnet-spoke-workload01-test-<region>-001`, `kv-hotelapi-test-<region>-001`, `id-hotelapi-test-<region>-001`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, `crhotelapitest<region>001`, etc.).
+- If you discover a design gap while writing Bicep, **fix it in the design doc and diagram first**, then change the template.
+- Identity wiring:
+  - UAMI per container app, with `AcrPull` (role definition ID `7f951dda-4ed3-4680-a7ca-43fe172d538d`) granted on the **registry scope** — grant it from the Bicep that creates the UAMI, not a post-deploy script.
+  - Wire the UAMI into the container app's **`registries[]`** entry so the app actually pulls with that identity (not with admin creds, not with a system-assigned identity that nobody granted `AcrPull` to). Pattern with the AVM `app/container-app` module:
 
-- What the backend is (runtime, framework, exposed endpoints, dependencies).
-- What the frontend is (build tooling, how it talks to the backend, how it's served in production).
-- What data store it expects, what authentication it uses, what config it reads at startup.
-- Which compute service hosts the containers, and why it fits this workload.
-- Where container images live and how that registry is exposed.
-- How the workload reaches its data tier privately, reusing the spoke and the distributed Private DNS pattern.
-- How identity flows end-to-end — which managed identities exist, what they're allowed to do.
-- Which subnets the workload needs in the spoke; whether the previous chore's address plan still fits.
-- Inbound exposure: how users reach the frontend.
-- Trade-offs against the [Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) pillars — Reliability, Security, Cost, Operations, Performance.
+    ```bicep
+    registries: [
+      {
+        server: acr.outputs.loginServer
+        identity: backendUami.outputs.resourceId  // the same UAMI that holds AcrPull
+      }
+    ]
+    ```
 
-**Private endpoints everywhere**, with two explicit exceptions:
+    Without this, the placeholder `mcr.microsoft.com/k8se/quickstart` revision still works (MCR is anonymous), but the rollout chore will fail with `UNAUTHORIZED` the moment the app tries to pull `cr<...>.azurecr.io/...`.
+  - **Backend UAMI = SQL server's Entra admin**, set declaratively on the AVM `sql/server` module — no `az sql server ad-admin create`, no post-deploy script. Because the MI is the server admin, it has full DDL/DML rights on every database; the app's startup code creates schema/seeds data on first run with no separate `CREATE USER ... FROM EXTERNAL PROVIDER` step.
+  - **No secrets** — construct connection strings from resource properties at deploy time; auth is MI-based.
 
-- The **container registry** stays publicly reachable (so the workshop's build/push works without a private build agent).
-- The **frontend app** stays publicly reachable (it's the user-facing entry point).
+  Pattern (AVM `br/public:avm/res/sql/server`):
+
+  ```bicep
+  module sqlServer 'br/public:avm/res/sql/server:<pinned-version>' = {
+    name: 'sql-server'
+    params: {
+      name: sqlServerName
+      location: location
+      managedIdentities: {
+        userAssignedResourceIds: [
+          backendUami.outputs.resourceId
+        ]
+      }
+      // Declarative Entra admin = backend UAMI. principalType MUST be 'Application'
+      // for a UAMI; sid is the UAMI's principalId (NOT clientId, NOT resourceId).
+      administrator: {
+        administratorType: 'ActiveDirectory'
+        login: backendUami.outputs.name
+        sid: backendUami.outputs.principalId
+        tenantId: subscription().tenantId
+        principalType: 'Application'
+        azureADOnlyAuthentication: true
+      }
+      publicNetworkAccess: 'Disabled'
+      privateEndpoints: [ /* PE in snet-private-endpoints, link to privatelink.database.windows.net */ ]
+      databases: [
+        {
+          name: 'hoteldb'
+          // serverless / scale-to-zero settings here
+        }
+      ]
+    }
+  }
+  ```
+
+  Three common one-shot failures, all in that `administrator` block:
+  - `principalType: 'User'` (wrong — must be `'Application'` for a UAMI).
+  - `sid: backendUami.outputs.clientId` (wrong — must be `principalId`).
+  - Forgetting `azureADOnlyAuthentication: true` — leaves SQL auth enabled even when no SQL login is provisioned.
+
+- Backend container app env var (no secret, no Key Vault round-trip needed):
+
+  ```bicep
+  env: [
+    {
+      name: 'ConnectionStrings__HotelDb'
+      value: 'Server=tcp:${sqlServer.outputs.fqdn},1433;Database=hoteldb;Authentication=Active Directory Default;Encrypt=True;'
+    }
+    {
+      name: 'AZURE_CLIENT_ID'
+      value: backendUami.outputs.clientId   // tells DefaultAzureCredential which UAMI to use when several are attached
+    }
+  ]
+  ```
+
+  The application's `DbInitializer.InitializeAsync` (see [workload-app/backend/HotelBooking.Api/Data/DbInitializer.cs](../workload-app/backend/HotelBooking.Api/Data/DbInitializer.cs)) runs on first startup, authenticates with the MI, and creates tables as the server admin. **No platform-team work after deploy.**
+
+- Decision-record note for the design doc: collapsing DBA and app-identity into one UAMI is a workshop simplification. In a production landing zone you'd typically use an Entra **group** as the admin (ops + break-glass), then create a contained DB user for the app MI with only `db_datareader` / `db_datawriter` / `EXECUTE`. Call out the trade-off; don't change the workshop path.
+
+- Distributed Private DNS: every zone created in the workload RG, linked to the spoke (registration) and the hub (resolution).
+- Parameterise location, naming tokens, address space, SKU sizes — with sensible defaults.
+- `Deploy-Workload.ps1` mirrors [mock-alz/Deploy-Hub.ps1](../mock-alz/Deploy-Hub.ps1). Run `azure-deployment-preflight` (what-if + permission checks) before every `az deployment group create`.
+- Post-deploy steps that can't live in Bicep (e.g. contained DB users for UAMIs) are scripted alongside the template — not done by hand.
 
 ### Outcome
 
-A short, opinionated design document in `docs/` plus a draw.io diagram, signed off and ready for a follow-up implementation chore without re-litigating decisions.
+- `infra/workload-01/` deploys cleanly end-to-end.
+- Second run of the script produces a no-op what-if (idempotent).
+- Public surface = frontend FQDN + container registry. Everything else private.
+- Resting cost matches the scale-to-zero estimate from the design.
 
-### Why this chore exists
+### Hint — workflow
 
-If you skip straight to Bicep, you end up redesigning halfway through writing it. Writing the design first turns the Bicep chore into pure execution.
+Use the **`bicep-plan`** chat mode to draft file layout and module choices, then switch to **`bicep-implement`** to write the resources. Keep the design open in the chat context.

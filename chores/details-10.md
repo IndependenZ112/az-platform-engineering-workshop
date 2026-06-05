@@ -1,39 +1,48 @@
-# Chore 10 — Staged infra deploy workflow
+# Chore 10 — Build-once, promote-everywhere app workflow
 
 ### Background
 
-Every change to the Bicep under `infra/` should flow through CI, not be deployed from a laptop. The platform team wants a **staged pipeline**: lint, then auto-deploy to **test**, then wait for a human to approve **prod**. Same shape a real landing zone uses — test as the safety net, prod gated by a reviewer.
+The previous chore handles infra; this handles the application. The rule is simple: **build each container image exactly once, then deploy that same image — same tag, same digest, byte-for-byte — to test and then to prod.** Prod must never see a freshly-rebuilt image, because a rebuild is a new artifact that hasn't been verified anywhere.
 
 ### Hints
 
-Workflow shape:
+Four-job workflow, all chained with `needs:`:
 
-| Stage | Job          | Runs on             | Purpose |
-| ----- | ------------ | ------------------- | ------- |
-| 1     | `lint`       | every trigger       | `az bicep build` + `az bicep lint` against `infra/**`. No Azure login. |
-| 2     | `deploy-test`| `needs: lint`, env `test` | OIDC login, `az deployment group what-if`, then `az deployment group create` against `rg-workload-01-test`. Auto-approved. |
-| 3     | `deploy-prod`| `needs: deploy-test`, env `prod` | Same shape but `rg-workload-01-prod`. **Blocks on required reviewer.** |
+| Stage | Job           | Env  | Purpose |
+| ----- | ------------- | ---- | ------- |
+| 1     | `build`       | `test` (for ACR push perms) | OIDC login, `az acr login`, `az acr build` for both Dockerfiles. Tag each image `:${{ github.sha }}`. **Emit the `@sha256:...` digests as job outputs** (`backend-digest`, `frontend-digest`). |
+| 2     | `deploy-test` | `test` | `az containerapp update --image <registry>/<repo>@${{ needs.build.outputs.backend-digest }}`. Pin to **digest**, not tag. Wait for the new revision to be healthy. Auto-approved. |
+| 3     | `smoke-test`  | `test` | `curl --fail` the test frontend FQDN and a couple of `/api/` health checks. If smoke fails, prod is never offered the image. |
+| 4     | `deploy-prod` | `prod` | **Blocks on required reviewer.** Same `az containerapp update --image ...@<digest>` against prod. **No build. No `az acr build`. No re-tag.** Same digest that passed test. |
 
-OIDC details:
+Other essentials:
 
-- `azure/login@v2` with `client-id` / `tenant-id` / `subscription-id`, `permissions: id-token: write`.
-- **No long-lived secrets** in repo or org secrets.
-- Two separate Entra app registrations — one per environment — each federated to the matching GitHub environment.
-- Federated credential subject for test: `repo:<owner>/<repo>:environment:test`. Same shape for prod.
+- **Reuse the per-env OIDC app registrations from the previous chore.**
+- **Capture the digest from `az acr build` itself — do not re-query the registry, do not pipe through `docker inspect`.** Pin the exact one-liner so the pipeline can't silently rebuild between "capture" and "deploy":
 
-GitHub Environments do the gating, not workflow logic:
+  ```bash
+  BACKEND_DIGEST=$(az acr build \
+    --registry "$ACR_NAME" \
+    --image "$BACKEND_REPO:${{ github.sha }}" \
+    --file workload-app/backend/HotelBooking.Api/Dockerfile \
+    workload-app/backend/HotelBooking.Api \
+    --query 'outputs.images[0].digest' -o tsv)
+  echo "backend-digest=$BACKEND_DIGEST" >> "$GITHUB_OUTPUT"
+  ```
 
-- `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`.
-- `prod`: **required reviewers** (at least one human), optional wait timer, deployment-branch policy restricted to `main`. Same four variables pointing at the prod app reg and `rg-workload-01-prod`.
-
-Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between stages. Template is identical.
-
-Every deploy job runs `what-if` first and writes the output to `$GITHUB_STEP_SUMMARY` so the prod reviewer sees what they're approving.
+  `outputs.images[0].digest` returns the `sha256:...` string produced by **this** build run. Combine it with the registry/repo to get the full immutable reference (`<registry>/<repo>@sha256:...`) that every downstream job uses.
+- Build is gated by `if: github.event.inputs.image_tag == ''` (or equivalent) so a `workflow_dispatch` with an explicit `image_tag` **skips the build entirely** and goes straight to redeploy. Covers two scenarios with one mechanism: redeploying yesterday's good image after a bad one, and rolling prod to an older tag while you investigate.
+- Each deploy job writes `backend → <registry>/<repo>@<digest>` and `frontend → <registry>/<repo>@<digest>` to `$GITHUB_STEP_SUMMARY` so the prod reviewer can eyeball it.
+- A multi-subscription setup would add `az acr import` between test and prod registries to copy the **same digest**. You still wouldn't rebuild.
 
 ### Outcome
 
-First end-to-end run: test deploys without prompting; prod sits in **Waiting** on the Actions tab until you approve. After approval, the same commit's prod deploy uses the exact templates and params verified in test — no drift.
+A diff of `az containerapp show` outputs across test and prod shows identical `image` fields ending in `@sha256:<same-digest>`. That's the contract.
 
-### Workshop scope note
+### Why build once
 
-You only have one subscription, so test and prod are different **resource groups** in the same subscription. The federated credentials and the workflow are still split per environment so the muscle memory matches a real multi-subscription landing zone — when you later have separate test and prod subscriptions, only `AZURE_SUBSCRIPTION_ID` changes.
+Every rebuild creates a new artifact: base-image patches, transient package mirrors, build-time clocks and ARGs all change the bytes. If prod has its own `build` job, prod is running an artifact that **no one has ever tested**. Build once, deploy the same image everywhere, and "it worked in test" actually means something in prod.
+
+### Why two pipelines, not one
+
+Infra (previous chore) and app (this chore) move at different speeds and have different blast radius. Separate workflows mean a typo in Bicep can't accidentally redeploy the app, and a hotfix container build doesn't drag a half-finished infra change along. Both pipelines share the same OIDC app registrations and the same `test` / `prod` environments, so the security model stays consistent.

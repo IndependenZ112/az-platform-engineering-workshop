@@ -1,49 +1,38 @@
-# Chore 9 — Publish your work to your own GitHub repo
+# Chore 9 — Staged infra deploy workflow
 
 ### Background
 
-So far you've been working in a local clone of [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop) with no write access. Time to take ownership: create a repo under your own GitHub account, swap `origin` over, push everything. Clean break — no `upstream`, no fork relationship.
+Every change to the Bicep under `infra/` should flow through CI, not be deployed from a laptop. The platform team wants a **staged pipeline**: lint, then auto-deploy to **test**, then wait for a human to approve **prod**. Same shape a real landing zone uses — test as the safety net, prod gated by a reviewer.
 
 ### Hints
 
-Review before publishing:
+Workflow shape:
 
-```powershell
-git status
-git diff --stat origin/main
-git log --oneline origin/main..HEAD
-```
+| Stage | Job          | Runs on             | Purpose |
+| ----- | ------------ | ------------------- | ------- |
+| 1     | `lint`       | every trigger       | `az bicep build` + `az bicep lint` against `infra/**`. No Azure login. |
+| 2     | `deploy-test`| `needs: lint`, env `test` | OIDC login, `az deployment group what-if`, then `az deployment group create` against `rg-workload-01-test`. Auto-approved. |
+| 3     | `deploy-prod`| `needs: deploy-test`, env `prod` | Same shape but `rg-workload-01-prod`. **Blocks on required reviewer.** |
 
-Anything surprising (large generated files, secrets, `.bicepparam` with real subscription IDs, local-only paths) gets fixed or `.gitignore`d **before** the first push.
+OIDC details (everything below was provisioned in a previous chore — this chore just consumes it):
 
-If your work is one giant uncommitted blob, split it into a handful of logical commits (e.g. `chore-1 toolbox`, `chore-2 spoke`, `chore-4 workload infra`). Conventional Commits is fine but not required.
+- `azure/login@v2` with `client-id: ${{ vars.AZURE_CLIENT_ID }}` / `tenant-id: ${{ vars.AZURE_TENANT_ID }}` / `subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}`, `permissions: id-token: write`.
+- **No long-lived secrets** in repo or org secrets.
+- One **user-assigned managed identity per environment** (the workload's GitHub deploy identity), each with a federated credential whose subject is `repo:<owner>/<repo>:environment:<env>`.
 
-Create the empty remote — **do not** initialise with README/.gitignore/license:
+GitHub Environments do the gating, not workflow logic (also already configured):
 
-```powershell
-# Option A — GitHub CLI
-gh repo create <your-handle-or-org>/az-platform-engineering-workshop `
-    --private `
-    --description "My run through the Azure Platform Engineering workshop" `
-    --disable-wiki
+- `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`.
+- `prod`: **required reviewers** (at least one human), optional wait timer, deployment-branch policy restricted to `main`. Same four variables pointing at the prod deploy identity and `rg-workload-01-prod`.
 
-# Option B — https://github.com/new (Owner + Name + Private, no init files)
-```
+Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between stages. Template is identical.
 
-Swap `origin`:
-
-```powershell
-git remote set-url origin https://github.com/<your-handle-or-org>/az-platform-engineering-workshop.git
-git remote -v
-git push -u origin main
-```
-
-Verify the round-trip in the browser: commit graph matches `git log --oneline`, last commit's author is your GitHub identity, no secrets or local-only artifacts (`*.tfstate`, `*.pem`, `bin/`, `obj/`). If anything leaked, scrub with [`git filter-repo`](https://github.com/newren/git-filter-repo) and force-push **once** before anyone clones the repo.
+Every deploy job runs `what-if` first and writes the output to `$GITHUB_STEP_SUMMARY` so the prod reviewer sees what they're approving.
 
 ### Outcome
 
-Your repo is on GitHub under an account you control, with clean history and clean commit identity. Future `git push` / `git pull` are one-liners.
+First end-to-end run: test deploys without prompting; prod sits in **Waiting** on the Actions tab until you approve. After approval, the same commit's prod deploy uses the exact templates and params verified in test — no drift.
 
-### Heads up
+### Workshop scope note
 
-Without `upstream`, you won't see new chores added to [azureholic/az-platform-engineering-workshop](https://github.com/azureholic/az-platform-engineering-workshop). Add it on demand: `git remote add upstream https://github.com/azureholic/az-platform-engineering-workshop.git` and cherry-pick what you need.
+You only have one subscription, so test and prod are different **resource groups** in the same subscription. The federated credentials and the workflow are still split per environment so the muscle memory matches a real multi-subscription landing zone — when you later have separate test and prod subscriptions, only `AZURE_SUBSCRIPTION_ID` changes.

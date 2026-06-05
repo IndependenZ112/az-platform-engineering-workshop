@@ -1,9 +1,14 @@
-# Chore 2 — Onboard a workload spoke
+# Chore 2 — Investigate the workload and design its infrastructure
 
-- Create a workload resource group (e.g. `rg-workload-01`).
-- Deploy a **spoke VNet** in a non-overlapping address space, with subnets sized for private endpoints and room to grow.
-- **Peer the spoke to the hub** in both directions.
-- Write the bicep and deploy to your Azure environment
-- Verify peering shows `Connected` on both sides.
+- Analyze the application in [workload-app/](../workload-app/) end-to-end.
+- Produce an **infrastructure design** (Markdown in `docs/`, with a draw.io diagram) for hosting it on Azure on containers.
+- **Frame the design as a well-architected `test` environment for the team.** Every CAF resource name carries the `test` environment token from day one (e.g. `rg-workload-01-test`, `ca-hotelapi-test-<region>-001`).
+- The design must be **Well-Architected**, **scale-to-zero**, and use **private endpoints for every PaaS service**.
+- The design must include a **dedicated GitHub Actions deploy identity per environment** (separate from any runtime UAMI on the container apps), with named RBAC scopes and a federated-credential subject pattern of `repo:<owner>/<repo>:environment:<env>`. Implementation lives in a follow-up chore; the design just names the identity, its scopes, and why it's distinct from the runtime identities.
+- The design should contain decision records with rationale for choices that are made.
+- The plan should be detailed enough that a follow-up implementation can build it without re-opening architectural decisions.
+- Do not peek at future chores, just design with the requirements here.
+- **No Bicep is written in this chore** — output is design only.
+- Review the design and **challenge things you do not agree with**. Have a conversation when you need to.
 
 Stuck or want to check your work? See [details-02.md](details-02.md).

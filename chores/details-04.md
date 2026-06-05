@@ -1,30 +1,55 @@
-# Chore 4 — Implement the workload infrastructure in Bicep
+# Chore 4 — Deploy the workload infrastructure
 
 ### Background
 
-The design from the previous chore is signed off. Turn it into **deployable Bicep** that lands the workload in the existing spoke — without re-opening architectural decisions.
+The Bicep from the previous chore is reviewed. Time to actually land it in the subscription.
 
 ### Hints
 
-- Bicep under `infra/workload-01/`. Use AVM wherever a module exists; raw `Microsoft.*` only with an inline comment explaining the gap.
-- CAF naming — see [.github/instructions/azure-naming.instructions.md](../.github/instructions/azure-naming.instructions.md).
-- If you discover a design gap while writing Bicep, **fix it in the design doc and diagram first**, then change the template.
-- Identity wiring:
-  - UAMI per container app, with `AcrPull` on the registry.
-  - Backend UAMI granted access to the data tier as the design prescribes.
-  - **No secrets** — construct connection strings from resource properties at deploy time; auth is MI-based.
-- Distributed Private DNS: every zone created in the workload RG, linked to the spoke (registration) and the hub (resolution).
-- Parameterise location, naming tokens, address space, SKU sizes — with sensible defaults.
-- `Deploy-Workload.ps1` mirrors [mock-alz/Deploy-Hub.ps1](../mock-alz/Deploy-Hub.ps1). Run `azure-deployment-preflight` (what-if + permission checks) before every `az deployment group create`.
-- Post-deploy steps that can't live in Bicep (e.g. contained DB users for UAMIs) are scripted alongside the template — not done by hand.
+- Confirm `az account show` points at the **same subscription** as the hub and the spoke.
+- Run **`azure-deployment-preflight`** end-to-end: validate, what-if, permission check. Do not proceed until all three are clean.
+- Execute `./infra/workload-01/Deploy-Workload.ps1`.
+- Re-run immediately — second run's what-if must be a **no-op**.
+- Verifications:
+  - Public surface = frontend FQDN + ACR login server only.
+  - **Private DNS is wired up correctly** — verify the A record exists in the workload's Private DNS zone and points at the private endpoint's IP:
+
+    ```powershell
+    az network private-dns record-set a list `
+      --resource-group <workload-rg> `
+      --zone-name privatelink.database.windows.net `
+      --query "[].{name:name, ip:aRecords[0].ipv4Address}" -o table
+
+    az network private-endpoint show `
+      --name <pe-sql-name> --resource-group <workload-rg> `
+      --query "customDnsConfigs[0].ipAddresses" -o tsv
+    ```
+
+    The two IPs must match, and the IP must sit inside the `snet-private-endpoints` range.
+  - **Public DNS for the SQL FQDN resolves to a CNAME ending in `.privatelink.database.windows.net`** — from your laptop (outside the spoke):
+
+    ```powershell
+    Resolve-DnsName <sqlserver>.database.windows.net | Format-Table Name, Type, NameHost, IPAddress
+    ```
+
+    You'll see the CNAME chain. A direct connection still **refuses** because `publicNetworkAccess` is `Disabled`.
+  - **Optional live resolution test from inside the spoke** (only useful once *any* container app revision is running — the placeholder image is fine):
+
+    ```powershell
+    az containerapp exec `
+      --resource-group <workload-rg> --name <backend-ca-name> `
+      --command "/bin/sh -c 'getent hosts <sqlserver>.database.windows.net'"
+    ```
+
+    If `getent`/`nslookup` aren't present in the placeholder image, defer this check to the rollout chore where the real backend image runs.
+  - Container apps exist with `minReplicas = 0`, registry has `adminUserEnabled = false`, both UAMIs hold `AcrPull` on the registry scope.
+  - SQL database in **paused** state shortly after deploy (auto-pause = 60 min).
+- **Don't deploy container images yet** — container apps will spin up with the placeholder `mcr.microsoft.com/k8se/quickstart` image. That's expected; the next chore fixes it.
 
 ### Outcome
 
-- `infra/workload-01/` deploys cleanly end-to-end.
-- Second run of the script produces a no-op what-if (idempotent).
-- Public surface = frontend FQDN + container registry. Everything else private.
-- Resting cost matches the scale-to-zero estimate from the design.
+Workload infrastructure exists in the subscription, fully private (except registry and frontend), idempotent, with a resting cost that matches the design.
 
-### Hint — workflow
+### Safety note
 
-Use the **`bicep-plan`** chat mode to draft file layout and module choices, then switch to **`bicep-implement`** to write the resources. Keep the design open in the chat context.
+This is the first irreversible step. If anything in the what-if surprises you (resource deletions, role-assignment changes on resources you didn't expect to touch, edits to the hub RG), stop and reconcile with the design.

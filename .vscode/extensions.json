@@ -1,0 +1,12 @@
+{
+	// Extensions VS Code will prompt you to install when you open this workspace.
+	// The Bicep extension ships the Bicep MCP server (bicepschema / bicep_m_* tools)
+	// used by the bicep-plan / azure-verified-modules-bicep chat modes.
+	"recommendations": [
+		"ms-azuretools.vscode-bicep",
+		"github.copilot",
+		"github.copilot-chat",
+		"ms-vscode.powershell",
+		"ms-azuretools.vscode-azureresourcegroups"
+	]
+}

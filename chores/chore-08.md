@@ -1,11 +1,11 @@
-# Chore 8 — Rebuild the deployment as two fully isolated environments
+# Chore 8 — Bootstrap GitHub Actions OIDC federation per environment
 
-- **Tear down the existing single-environment workload deployment** (container apps → SQL/ACR/etc → spoke VNet + peerings → resource group). `mock-alz` / `rg-platform` are not touched.
-- Stand up **two spoke VNets**, one per environment, each in its own resource group, each peered independently to the hub. The two spokes do **not** peer to each other.
-- Workload Bicep deploys end-to-end into the **matching spoke** for its environment.
-- The **distributed Private DNS** pattern still applies per environment.
-- The deploy script can deploy spoke, workload, or both; spoke is deployed first.
-- After rebuild, the hub shows exactly two workload peerings (`...-test`, `...-prod`), both `Connected`, no orphans.
-- Design doc and diagram are updated **before** any Bicep changes.
+- A PowerShell script (e.g. `scripts/Setup-GitHubOidc.ps1`) provisions the **GitHub Actions deploy identity** for each environment end-to-end. **No portal clicks.**
+- Per environment, the script creates (idempotently) a **user-assigned managed identity** dedicated to GitHub Actions (separate from any runtime UAMI on the container apps), with **`Owner` on its own workload RG**, **`Network Contributor` on the hub VNet**, and **`AcrPush` on the workload container registry**.
+- The script adds a **federated credential** on each deploy identity with subject `repo:<owner>/<repo>:environment:<env>` (issuer `https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange`).
+- The script creates the **GitHub Environments** `test` and `prod` (using `gh api`), sets `prod`'s **required reviewers** and **deployment-branch policy = `main`**, and writes the four environment **variables** (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`) per environment via `gh variable set --env`.
+- Repo owner/name are inferred from `git remote get-url origin`; the script accepts overrides for forks.
+- Re-running the script is a **no-op** (federated credentials with the same name are updated, not duplicated; role assignments and GitHub variables are checked before writing).
+- After it runs, `az identity federated-credential list` shows one subject per environment per identity, and `gh variable list --env test` / `--env prod` show the four variables.
 
 Stuck or want to check your work? See [details-08.md](details-08.md).

@@ -40,7 +40,15 @@ By the end of the workshop you will have, with GitHub Copilot doing the heavy li
   ```
 
   macOS: `brew install git` (or use the Xcode Command Line Tools). Linux: install `git` from your distro's package manager.
-- A **GitHub Copilot** license, with the Azure and Bicep MCP servers enabled.
+- A **GitHub Copilot** license. Agent mode is used throughout the chores.
+- **MCP servers enabled in VS Code.** This repo ships the configuration for you: when you open the folder, VS Code reads [.vscode/mcp.json](.vscode/mcp.json) and prompts you to start the Microsoft Learn MCP server, and reads [.vscode/extensions.json](.vscode/extensions.json) and prompts you to install the Bicep extension (which provides the second MCP server). The chat modes and skills in this repo rely on both being available.
+
+  | MCP server | How it gets registered | Why this workshop needs it |
+  | --- | --- | --- |
+  | **Microsoft Learn MCP** (`microsoft-learn`) | HTTP server in `.vscode/mcp.json` (no install) | Grounds the `azure-principal-architect`, `bicep-plan`, and `azure-verified-modules-bicep` modes in current Microsoft documentation via `microsoft_docs_search` / `microsoft_docs_fetch`. |
+  | **Bicep MCP** (`bicepschema` / `bicep_m_*`) | Ships with the [Bicep VS Code extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-bicep) recommended in `.vscode/extensions.json` | Used by the Bicep agents to pull live resource schemas, AVM module versions, and Bicep best practices when authoring IaC. |
+
+  After accepting the prompts, open **MCP: List Servers** in VS Code and confirm `microsoft-learn` and the Bicep server are both **Running**. If Copilot's tool list doesn't show `microsoft_docs_search` and `bicepschema`, fix the MCP setup before starting the chores.
 - **[PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)** (deployment scripts use `#requires -Version 7.0`).
 - **[Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)**.
 - **[GitHub CLI (`gh`)](https://cli.github.com/)**:
@@ -115,5 +123,5 @@ Each chore in [CHORES.md](CHORES.md) is meant to be solved **with Copilot in age
 
 Two non-negotiables that come from [.github/copilot-instructions.md](.github/copilot-instructions.md):
 
-1. **Never create, edit, move, or delete anything under `workload-app/`** — the platform team treats it as immutable. Dockerfiles and other build assets live under `dockerfiles/`. Chore 14 requires a one-line edit inside `workload-app/`, but you make it **by hand** in the editor — Copilot is not allowed to touch the folder.
+1. **Never modify application source under `workload-app/`** — the platform team treats the app code as immutable. The **one exception** is container build assets (`Dockerfile`, `.dockerignore`, nginx config, entrypoint scripts), which live next to the service they build (e.g. `workload-app/backend/HotelBooking.Api/Dockerfile`, `workload-app/frontend/Dockerfile`, `workload-app/frontend/nginx/default.conf`) and are platform-team property. Chore 13 requires a one-line edit to actual application source inside `workload-app/`; you make that **by hand** in the editor — Copilot is not allowed to touch app source.
 2. **All container base images come from `mcr.microsoft.com`**, not Docker Hub.

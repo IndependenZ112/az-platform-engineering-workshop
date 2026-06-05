@@ -1,0 +1,12 @@
+{
+	// Workspace-scoped MCP server registration for the Azure Platform Engineering workshop.
+	// When you open this repo in VS Code, the editor will prompt you to start this server.
+	// The Bicep MCP server ships with the Bicep VS Code extension (see .vscode/extensions.json).
+	// See README.md (Prerequisites → MCP servers) for what each server is used for.
+	"servers": {
+		"microsoft-learn": {
+			"type": "http",
+			"url": "https://learn.microsoft.com/api/mcp"
+		}
+	}
+}

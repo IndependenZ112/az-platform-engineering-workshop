@@ -1,12 +1,13 @@
-# Chore 6 — Build the container images and roll them out
+# Chore 6 — Parameterise the workload template and add a `prod` environment
 
-- Two Dockerfiles live under `dockerfiles/`:
-  - `Dockerfile.backend` for [workload-app/backend/HotelBooking.Api/](../workload-app/backend/HotelBooking.Api/).
-  - `Dockerfile.frontend` for [workload-app/frontend/](../workload-app/frontend/), served by nginx with SPA fallback and `/api/` reverse-proxied to the backend's internal ingress.
-- Every `FROM` line uses **`mcr.microsoft.com`**.
-- A PowerShell script `dockerfiles/Build-And-Deploy.ps1` does the full rollout: reads outputs from the workload infrastructure deployment, logs in to ACR, builds with **`az acr build`**, tags with `:latest` and the short Git SHA, and updates each container app to the new image.
-- The script is **idempotent**.
-- After rollout, the frontend FQDN serves the SPA, `/api/hotels` returns JSON, and a booking POST works end-to-end.
-- **You do not edit `workload-app/`.**
+- The application team now needs a **production** environment alongside `test`. Both environments coexist in the same subscription.
+- Prod must run **at least 3 replicas spread across availability zones**, no scale-to-zero, and the data tier must be **zone-redundant**.
+- The workload Bicep deploys **both `test` and `prod` from the same template** — every difference between environments is expressed as a parameter value, not as a code branch.
+- The existing `test` deployment is **preserved**: re-deploying `test` after this chore is a clean **no-op** (`what-if` shows no changes, no resource is dropped or recreated).
+- Each environment lives in its **own resource group** and on its **own spoke** (non-overlapping address spaces). Spokes peer to the hub independently and **do not peer to each other**.
+- The **distributed Private DNS** pattern still applies per environment.
+- The deploy script takes an `-Environment test|prod` switch and runs preflight before every deploy.
+- Design doc and diagram are updated to show both environments and the parameter-driven model **before** any Bicep changes.
+- **Actually deploy `prod`** at the end of the chore. After the deploy: `rg-workload-01-prod` exists, both spokes are peered to the hub, and a `what-if` against `test` still reports zero changes.
 
 Stuck or want to check your work? See [details-06.md](details-06.md).

@@ -1,51 +1,48 @@
-# Chore 12 — Commit and push the workflows
+# Chore 12 — Prove the infra pipeline by retagging the workload
 
 ### Background
 
-The two previous chores produced two workflow files (`.github/workflows/infra-deploy.yml`, `.github/workflows/app-deploy.yml`) sitting as **uncommitted local changes**. They can't run until they're on `main` of your remote — GitHub Actions reads workflows from the repo, not your laptop.
+The infra pipeline you built earlier is wired up but you haven't seen it react to a real change. The cheapest, safest proof is a **trivial, observable** edit — change or add a `tags` value. Tags don't move resources, don't restart anything, and `what-if` makes the diff easy to spot.
 
 ### Hints
 
-Inspect before committing:
+Good candidates:
+
+- Bump an existing `CostCenter` / `Owner` / `Environment` value.
+- Add a new tag (`tags: { ManagedBy: 'platform-team', ChangeTicket: '<id>' }`) via the standard AVM `tags` parameter on the RG / resources.
+- If your Bicep hoists a single `tags` object at the top of `main.bicep` and fans it out via `tags: tags` on every module, change it in **one** place.
+
+Run preflight locally first so you don't burn a CI run on a typo:
 
 ```powershell
-git status
-git diff -- .github/workflows/
-git diff -- README.md
+az bicep build --file infra/workload-01/main.bicep
+az deployment group what-if `
+    --resource-group rg-workload-01-test `
+    --template-file infra/workload-01/main.bicep `
+    --parameters infra/workload-01/main.test.bicepparam
 ```
 
-Only workflow YAMLs and related docs land. Nothing under `workload-app/`. No `*.bicepparam` with real subscription IDs. No local-only test files.
-
-Commit cleanly — one commit per workflow:
+Confirm the only changes are tag deltas. If anything else lights up, stop and figure out why before pushing.
 
 ```powershell
-git add .github/workflows/infra-deploy.yml
-git commit -m "ci: add staged infra deploy workflow"
-
-git add .github/workflows/app-deploy.yml
-git commit -m "ci: add build-once app deploy workflow"
-
-git add README.md docs/
-git commit -m "docs: document CI/CD workflows"
-
+git add infra/workload-01/
+git commit -m "infra(workload-01): add ManagedBy tag to prove CI pipeline"
 git push origin main
 ```
 
-If you've been on a feature branch, **open a PR and merge to `main`** — the `paths:` filters only fire on `push` to `main`.
+If the workflow does **not** trigger:
 
-Sanity-check **Settings → Environments**: both `test` and `prod` exist with federated credentials, secrets/variables, and (for `prod`) required reviewers. If they're missing, the next run fails with `Error: No subscription found` or `Error: environment 'prod' not configured`.
+1. The commit only touched files outside the `paths:` filter (`git show --stat HEAD`).
+2. You pushed to a branch, not `main` (`git log origin/main -1`).
+3. The workflow file didn't reach `main` in the previous chore — confirm on github.com.
 
 ### Outcome
 
-```text
-On branch main
-Your branch is up to date with 'origin/main'.
+- New run on the Actions tab tied to your commit SHA.
+- `lint` green; `deploy-test` runs `what-if` against `rg-workload-01-test` and the job summary shows **only the tag change**.
+- `deploy-test` finishes green; tag updated on `rg-workload-01-test` (`az group show -n rg-workload-01-test --query tags`).
+- `deploy-prod` is in **Waiting**. Approve. Same shape against `rg-workload-01-prod`. Tag matches across both.
 
-nothing to commit, working tree clean
-```
+### Why a tag
 
-Both `infra-deploy` and `app-deploy` appear on the Actions tab with status `active` and can be dispatched manually.
-
-### Why this is its own chore
-
-"Add a workflow file" and "make the workflow runnable" are not the same thing. A workflow that only exists on your laptop is just YAML — it doesn't gate anything, deploy anything, or show up on the Actions tab. This chore is the bridge: it turns the two workflow files into actual CI/CD.
+A tag change is the smallest possible "real" infra edit: it exercises lint → OIDC login → what-if → deploy → environment approval, but the underlying resources don't change state. If you ever need to prove the pipeline still works after a credential rotation, workflow refactor, or quiet period, do this chore again.

@@ -1,9 +1,9 @@
-# Chore 1 — Curate the Copilot toolbox for this repo
+# Chore 1 — Onboard a workload spoke
 
-- Read [README.md](../README.md) and [.github/copilot-instructions.md](../.github/copilot-instructions.md) **with Copilot**.
-- Pick a shortlist of **agents, instructions, and skills** from [aka.ms/awesome-copilot](https://aka.ms/awesome-copilot) that fit this workshop.
-- Install them into the repo under `.github/instructions/`, `.github/skills/`, `.github/agents/`.
-- Reload the VS Code window so they are picked up.
-- Smoke-test that Copilot now follows them.
+- Create a workload resource group (e.g. `rg-workload-01`).
+- Deploy a **spoke VNet** in a non-overlapping address space, with subnets sized for private endpoints and room to grow.
+- **Peer the spoke to the hub** in both directions.
+- Write the bicep and deploy to your Azure environment
+- Verify peering shows `Connected` on both sides.
 
 Stuck or want to check your work? See [details-01.md](details-01.md).

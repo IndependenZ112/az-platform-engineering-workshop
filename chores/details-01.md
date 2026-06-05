@@ -1,23 +1,18 @@
-# Chore 1 — Curate the Copilot toolbox
+# Chore 1 — Onboard a workload spoke
 
 ### Background
 
-The community maintains a large catalogue of reusable Copilot customizations at [aka.ms/awesome-copilot](https://aka.ms/awesome-copilot) (the [`github/awesome-copilot`](https://github.com/github/awesome-copilot) repo) — **agents**, **instructions**, and **skills**. Picking the right ones up front means Copilot follows your conventions (CAF naming, AVM, Bicep best practices, draw.io diagram authoring, deployment preflight, container best practices) without you having to re-prompt them every chore.
+A new application team needs network space. As the platform team, you add a **spoke VNet** that hosts their workload and connect it to the hub.
 
 ### Hints
 
-- Browse the [`agents/`](https://github.com/github/awesome-copilot/tree/main/agents), [`instructions/`](https://github.com/github/awesome-copilot/tree/main/instructions), and [`skills/`](https://github.com/github/awesome-copilot/tree/main/skills) folders — or use the [machine-readable index](https://awesome-copilot.github.com/llms.txt) — and let Copilot match items to the chores ahead.
-- Install layout:
-  - **Instructions** → `.github/instructions/*.instructions.md` (use `applyTo` glob front-matter).
-  - **Skills** → `.github/skills/<skill-name>/SKILL.md` (plus any bundled assets).
-  - **Agents** → `.github/agents/<agent-name>.agent.md`.
-- After installing, **Developer: Reload Window** (`Ctrl+Shift+P`). New customizations are only discovered on window load.
-- Smoke test: ask Copilot for a Bicep resource name (should cite naming instructions); ask for a Dockerfile (should pull from `mcr.microsoft.com`).
+- Spoke VNet needs at least a subnet for **private endpoints** (with `privateEndpointNetworkPolicies` configured appropriately) and room to grow for app/data subnets.
+- For a hub without a gateway: `allowGatewayTransit` / `useRemoteGateways` stay **off**; `allowVirtualNetworkAccess` **on**; `allowForwardedTraffic` typically **on**.
+- Peering must be created on **both** sides — hub→spoke and spoke→hub.
 
 ### Outcome
 
-The repo has a curated set of agents/instructions/skills under `.github/`, and Copilot now follows the workshop's conventions without re-prompting. Every subsequent chore assumes these are loaded.
-
-### Why this chore exists
-
-The exact set drifts as the community publishes new items. Treat this chore as recurring — re-running it every few months keeps the repo's Copilot configuration current.
+- Resource group `rg-workload-01` exists.
+- Spoke VNet deployed in a non-overlapping range.
+- `az network vnet peering list` shows `Connected` on both sides.
+- A resource in the spoke can reach the hub address space.
