@@ -8,11 +8,14 @@ Every change to the Bicep under `infra/` should flow through CI, not be deployed
 
 Workflow shape:
 
-| Stage | Job          | Runs on             | Purpose |
-| ----- | ------------ | ------------------- | ------- |
-| 1     | `lint`       | every trigger       | `az bicep build` + `az bicep lint` against `infra/**`. No Azure login. |
-| 2     | `deploy-test`| `needs: lint`, env `test` | OIDC login, `az deployment group what-if`, then `az deployment group create` against `rg-workload-01-test`. Auto-approved. |
-| 3     | `deploy-prod`| `needs: deploy-test`, env `prod` | Same shape but `rg-workload-01-prod`. **Blocks on required reviewer.** |
+| Stage | Job             | Runs on                              | Purpose |
+| ----- | --------------- | ------------------------------------ | ------- |
+| 1     | `lint`          | every trigger                        | `az bicep build` + `az bicep lint` against `infra/**`. No Azure login. |
+| 2     | `deploy-shared` | `needs: lint`, env `test`            | OIDC login, `what-if` + `az deployment group create` for the **shared/app-supporting template** (the one that owns the single workshop ACR and any other resources both envs share) against the shared RG (e.g. `rg-workload-shared`). Emits the shared resource ids — at minimum the ACR resource id and login server — as **job outputs** for the per-env deploys to consume. Auto-approved. |
+| 3     | `deploy-test`   | `needs: deploy-shared`, env `test`   | OIDC login, `what-if` + `az deployment group create` for the **per-env workload template** (spoke + peering, Container Apps environment, container apps, Azure SQL, managed identities, private endpoints + Private DNS) against `rg-workload-01-test`. Passes the shared outputs (`acrResourceId`, `acrLoginServer`) as parameters — does **not** provision an ACR. Auto-approved. |
+| 4     | `deploy-prod`   | `needs: deploy-test`, env `prod`     | Same shape as `deploy-test` but `rg-workload-01-prod` with `main.prod.bicepparam`, consuming the same shared outputs. **Blocks on required reviewer.** |
+
+A run that stops after `deploy-shared` (or after only the spoke part of the workload template) leaves the app unable to pull images or reach SQL — every infra run must produce a fully deployable environment, end to end. The split is about ownership and lifecycle (the shared registry is deployed once and shared across envs), not about deploying less.
 
 OIDC details (everything below was provisioned in a previous chore — this chore just consumes it):
 
@@ -22,10 +25,12 @@ OIDC details (everything below was provisioned in a previous chore — this chor
 
 GitHub Environments do the gating, not workflow logic (also already configured):
 
-- `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`.
+- `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`. The `deploy-shared` job runs under this identity too and targets the shared RG (e.g. `rg-workload-shared`); the shared RG name is a workflow-level constant rather than a per-env variable so it does not silently fork between envs.
 - `prod`: **required reviewers** (at least one human), optional wait timer. Same four variables pointing at the prod deploy identity and `rg-workload-01-prod`.
 
-Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between stages. Template is identical.
+For the `deploy-shared` identity to deploy into the shared RG, it needs `Owner` (or `Contributor` + `User Access Administrator`) on that RG — same scoping rule as the per-env workload RGs (see [github-oidc-federation](../.github/instructions/github-oidc-federation.instructions.md)). It only ever holds `AcrPush` on the one shared registry; per-env identities pick up the registry resource id from the `deploy-shared` outputs and grant their runtime MIs `AcrPull` on it from the workload Bicep.
+
+Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between the per-env stages. The workload template is identical and both stages reference the same shared resource ids emitted by `deploy-shared`.
 
 Every deploy job runs `what-if` first and writes the output to `$GITHUB_STEP_SUMMARY` so the prod reviewer sees what they're approving.
 

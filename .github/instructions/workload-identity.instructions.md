@@ -39,6 +39,14 @@ most common cause of an `UNAUTHORIZED` pull at rollout time:
    `identity`. Without this the placeholder MCR image still runs (MCR is anonymous) but the
    first pull of `*.azurecr.io/...` fails.
 
+There is **one** workshop ACR — it is **not** stamped out per environment by the workload
+template. The workload Bicep takes the registry **resource id** as a parameter and grants
+each environment's runtime managed identity `AcrPull` on that single registry, so test and
+prod container apps both reference the same `loginServer` in `registries[]`. Provisioning a
+second ACR for prod (or any per-env duplicate) breaks
+[build-once-promote-everywhere](build-once-promote-everywhere.instructions.md) — fix the
+topology, do not work around it with `az acr import`.
+
 ## Azure SQL: managed identity is the Entra admin
 
 - The **backend container app's managed identity is the SQL server's Microsoft Entra admin**,
