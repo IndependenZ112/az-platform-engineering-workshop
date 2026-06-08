@@ -1,11 +1,11 @@
 # Chore 1 — Onboard a workload spoke
 
-A new application team needs network space. As the platform team, add a spoke to the
+A new application team needs network space for their test environment. As the platform team, add a spoke to the
 hub-and-spoke topology and connect it to the existing hub.
 
 ## Requirements
 
-- A workload resource group exists (e.g. `rg-workload-01`).
+- We need a workload resource group.
 - A **spoke VNet** is deployed in an address space that does **not** overlap the hub, with at
   least a subnet sized for private endpoints and headroom for app/data subnets to follow.
 - The spoke is **peered to the hub in both directions**.
