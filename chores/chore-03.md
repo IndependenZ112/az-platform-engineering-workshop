@@ -5,7 +5,7 @@ workload in the existing spoke without re-opening architectural decisions.
 
 ## Requirements
 
-- All Bicep lives under `infra/workload-01/` and **uses Azure Verified Modules** wherever a
+- All Bicep lives under `infra/workload/` and **uses Azure Verified Modules** wherever a
   module exists. Raw `Microsoft.*` resources only where no AVM module exists, with a comment
   explaining the gap.
 - Resource names follow **Microsoft CAF** and embed the `test` environment token from day one.
@@ -31,7 +31,7 @@ workload in the existing spoke without re-opening architectural decisions.
 ## Success criteria
 
 **Done when**
-- `infra/workload-01/` holds a complete Bicep template plus the `Deploy-Workload.ps1` wrapper.
+- `infra/workload/` holds a complete Bicep template plus the `Deploy-Workload.ps1` wrapper.
 - The template compiles/lints clean and passes preflight (what-if + permission check) against
   the target resource group — without surprises in the what-if.
 
