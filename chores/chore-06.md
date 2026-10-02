@@ -1,41 +1,30 @@
-# Chore 6 — Parameterise the workload template and add a `prod` environment
+# Chore 6 — Publish your work to your own GitHub repo
 
-The application team now needs a **production** environment alongside `test`. Both coexist in
-the same subscription. The principle is non-negotiable: **one template, two parameter files** —
-every environment difference is a parameter value, not a code branch.
+Take ownership of the work: move it from the local clone to a repository under your own
+GitHub account. Clean break — no fork relationship, no upstream.
 
 ## Requirements
 
-- The design doc and diagram are **updated first** to show both environments, the address-space
-  split, and the parameter-driven model — before any Bicep changes.
-- The workload Bicep deploys **both `test` and `prod` from the same template**. Every
-  difference (scaling, SKUs, zone redundancy, address space, auto-pause, replica count) is a
-  **parameter value**. There are **no** environment `if` branches in the template.
-- The existing `test` deployment is **preserved byte-for-byte**: re-deploying `test` is a
-  clean no-op (what-if shows zero changes; nothing is renamed, dropped, or recreated).
-- **Prod** runs **at least 3 replicas spread across availability zones**, no scale-to-zero, and
-  a **zone-redundant** data tier.
-- Each environment lives in its **own resource group** and on its **own spoke**
-  (non-overlapping address spaces). Spokes peer to the hub independently and **not** to each
-  other. The **distributed Private DNS** pattern applies per environment, with isolated zones.
-- The deploy script takes an `-Environment test|prod` switch and runs preflight before every
-  deploy.
-- **Prod is actually deployed** at the end of the chore.
+- The local diff is **reviewed before publishing** — nothing surprising, secret, or local-only
+  (real subscription IDs in parameter files, build output, certificates) gets pushed.
+- The work is staged into a handful of **clean, logical commits**.
+- A new **empty** repository is created under your account — **not** initialised with
+  README/.gitignore/license.
+- `origin` is repointed at the new repo (no `upstream`, no fork link), and everything is
+  pushed to `main` with the upstream set.
 
 ## Success criteria
 
 **Done when**
-- `prod` is deployed with zone-redundant compute and data, ≥ 3 replicas, its own spoke and
-  DNS; `test` is unchanged.
+- Your repo on GitHub holds the full history under an account you control.
 
 **Verify**
-- Deploying `test` reports a clean no-op what-if against its resource group.
-- The hub shows two workload peerings (`...-test`, `...-prod`), both `Connected`, no orphans.
-- The template contains **zero** `if (environmentName == ...)` branches.
+- The commit graph in the browser matches your local `git log`.
+- The latest commit's author is your GitHub identity.
+- No secrets or local-only artifacts are present in the pushed tree.
 
 **Enough to move on**
-- Both environments are healthy on their own frontend FQDNs and only parameter values differ
-  between them.
+- `git push` / `git pull` are one-liners against your own `origin`, and the history is clean.
 
 ---
-Background, the parameter shape, and the zone-redundancy caveat: [details-06.md](details-06.md).
+Background, the review commands, and a secret-scrub note: [details-06.md](details-06.md).

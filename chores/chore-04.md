@@ -10,8 +10,8 @@ preflight comes first.
   proceed when all three are clean.
 - Execute the deploy script, then re-run it and confirm the second run's what-if is a
   **no-op**.
-- Container **images are not deployed yet** — the apps come up on the placeholder image; that
-  is expected and a follow-up chore replaces it.
+- Confirm the deployment uses the public, prebuilt workshop images from GHCR and that the
+  frontend receives the backend's internal HTTPS ingress URL through `BACKEND_URL`.
 
 ## Success criteria
 
@@ -27,11 +27,12 @@ preflight comes first.
   connection refuses (public access disabled).
 - Container apps exist with `minReplicas = 0`, ACR admin user disabled, both managed
   identities hold `AcrPull` on the registry.
-- The frontend's public URL loads in a browser and serves the placeholder image's default
-  page (the real app is not built yet) — confirming public ingress works end to end.
+- The frontend's public URL loads the hotel SPA, `/api/hotels` returns JSON through the
+  frontend proxy, and both container apps report healthy revisions.
 
 **Enough to move on**
-- Infrastructure is up, private, idempotent, and the resting cost matches the design.
+- Infrastructure and the workload are up, private, idempotent, and the resting cost matches
+  the design.
 
 ---
 Background, verification commands, and a safety note: [details-04.md](details-04.md).

@@ -1,30 +1,91 @@
-# Chore 5 — Build the container images and roll them out
+# Chore 5 — Parameterise the workload template and add a `prod` environment
 
 ### Background
 
-Infrastructure is up but the container apps are still serving placeholder content. You're a **platform engineer, not a developer** — you don't know the .NET/React stack. Copilot reads [workload-app/](../workload-app/), produces two Dockerfiles, and writes the rollout script. You stay in your lane and review.
+Chore 3 stood up the workload **for the team's `test` environment** with `test` baked into every resource name. Now the application team needs a **production** environment alongside it. The principle of this chore is non-negotiable: **one Bicep template, two parameter files**. Every difference between `test` and `prod` (scaling, SKUs, zone redundancy, address space, auto-pause, replica count) is a parameter value, **not** a code branch.
+
+Prod must run **at least 3 replicas spread across availability zones**, no scale-to-zero. Both environments coexist in the same subscription, in separate resource groups, on separate spokes.
 
 ### Hints
 
-- Backend: multi-stage build at [workload-app/backend/HotelBooking.Api/Dockerfile](../workload-app/backend/HotelBooking.Api/Dockerfile), built against the .NET 10 minimal API source in the same folder (build context = that folder, e.g. `az acr build --file workload-app/backend/HotelBooking.Api/Dockerfile workload-app/backend/HotelBooking.Api`). Add a `.dockerignore` next to it. The backend image serves the API only — **do not bundle the SPA into it**; the frontend image (nginx) is what ships `index.html` and the static assets.
-- Frontend: multi-stage build at [workload-app/frontend/Dockerfile](../workload-app/frontend/Dockerfile), built against [workload-app/frontend/](../workload-app/frontend/), served by nginx. The nginx config lives at `workload-app/frontend/nginx/default.conf` (or `nginx.conf`) as a real file that the Dockerfile `COPY`s into the image — no heredocs, no `RUN echo` inlining. It does SPA fallback (`try_files $uri /index.html`) and reverse-proxies `/api/` to the backend container app's **internal** ingress FQDN, keeping the frontend the only public surface.
-- The **only** files written into `workload-app/` are container build assets (`Dockerfile`, `.dockerignore`, nginx config, entrypoint scripts). Application source (`.cs`, `.tsx`, `.ts`, `package.json`, `appsettings.json`, `index.html`, build configs) is still off-limits.
-- Every `FROM` line uses **`mcr.microsoft.com`** with the **pinned tags from [.github/copilot-instructions.md](../.github/copilot-instructions.md) rule 5** — `mcr.microsoft.com/dotnet/sdk:10.0` and `mcr.microsoft.com/dotnet/aspnet:10.0` for the backend, `mcr.microsoft.com/azurelinux/base/nodejs:24` and `mcr.microsoft.com/azurelinux/base/nginx:1.28` for the frontend. Don't substitute `:latest`, and don't pick a different Node major — Vite 7 needs Node ≥ 20.19 and Azure Linux only publishes 20.14 and 24 today, so 24 is the working choice.
-- A PowerShell rollout script (e.g. `Build-And-Deploy.ps1` at the repo root or under a platform-team scripts folder):
-  - Reads ACR login server and container app names from the previous chore's deployment outputs (or accepts them as parameters). Do **not** hard-code names.
-  - `az acr login` (Entra-based, no admin user).
-  - `az acr build` for both images (server-side build — no local Docker needed), each pointing at its own `workload-app/<service>/` build context. Tag with `:latest` and `git rev-parse --short HEAD`.
-  - `az containerapp update --image <acr>/<repo>:<sha>` triggers a new ACA revision. Wait for `Healthy` before moving on.
-  - Print the public frontend FQDN at the end.
-- Script must be **idempotent**.
+**Introduce an `environmentName` parameter** (allowed values `test` / `prod`) in `main.bicep` and use it wherever a name was hardcoded to `test` in Chore 3. The `test` deployment keeps every existing name byte-for-byte (`rg-workload-01-test`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, …). A `what-if` against the `test` RG **must show zero changes** — if it shows renames or deletes, you've broken the contract and the test environment will be torn down on the next deploy.
+
+**Parameterise every environment-specific value.** Replace each prod-vs-test difference with a parameter, then pass it through to the AVM modules. The differences to cover (with example test → prod values):
+
+- **Networking:** spoke address space (`10.10.0.0/22` → `10.20.0.0/22`).
+- **Container Apps:** `minReplicas` (0 → 3), `maxReplicas` (3 → 10), ACA environment zone redundancy (false → true).
+- **Azure SQL:** SKU (e.g. `GP_S_Gen5_1` → `GP_S_Gen5_2`, or `BC_Gen5_2`), zone redundancy (false → true), auto-pause delay (60 → -1 / disabled).
+
+**No `if (environmentName == 'prod') { ... } else { ... }` branches in the template.** If you find yourself writing one, the value belongs in a parameter.
+
+Two parameter files alongside `main.bicep`:
+
+- `workload.test.bicepparam` — exact values that match the existing `test` deployment.
+- `workload.prod.bicepparam` — prod values (zone-redundant, ≥ 3 replicas, no auto-pause, non-overlapping CIDR).
+
+`Deploy-Workload.ps1` gains an `-Environment` switch and selects:
+
+| `-Environment` | Resource group         | Parameter file              |
+| -------------- | ---------------------- | --------------------------- |
+| `test`         | `rg-workload-01-test`  | `workload.test.bicepparam`  |
+| `prod`         | `rg-workload-01-prod`  | `workload.prod.bicepparam`  |
+
+Preflight (what-if + permission check) runs before every `az deployment group create`, regardless of environment.
+
+**One thing genuinely can't be flipped by a parameter on an existing resource:** the Container Apps environment's `zoneRedundant` flag is **set at creation and cannot be changed later**. The existing test ACA environment stays as it is (not zone-redundant); the prod ACA environment is created fresh **as** zone-redundant. The parameter still drives the value — there's just no in-place migration path for that property, so what-if on test continues to show no change.
+
+**Address spaces.** Suggest test = `10.10.0.0/22`, prod = `10.20.0.0/22`. Write the convention into the design doc **before** changing the Bicep. Each spoke peers to the hub in both directions; spokes do **not** peer to each other.
+
+**Distributed Private DNS per environment.** Each env owns its own `privatelink.*` zones in its own RG, linked to its own spoke (registration) and to the hub (resolution). Do not share zones between environments — DNS resolution must be isolated.
 
 ### Outcome
 
-- `curl https://<frontend-fqdn>/` returns the SPA's `index.html`.
-- `curl https://<frontend-fqdn>/api/hotels` returns JSON.
-- A booking POST works (backend reaches SQL via private endpoint with its managed identity).
-- Application Insights shows a single distributed trace browser → frontend → backend → SQL.
+- `Deploy-Workload.ps1 -Environment test` produces a clean **no-op** what-if against `rg-workload-01-test`.
+- `Deploy-Workload.ps1 -Environment prod` deploys `rg-workload-01-prod` end-to-end with zone-redundant ACA, ≥ 3 replicas, zone-redundant SQL, and its own spoke + DNS.
+- Both environments are healthy on their own frontend FQDNs.
+- Hub shows two workload peerings (`...-test`, `...-prod`), both `Connected`, no orphans.
+- Design doc + diagram updated to show both environments, the address-space split, and the parameter-driven model.
+- The template has **zero** `if (environmentName == ...)` branches.
 
-### Note for the platform engineer
+### Reliability note
 
-You are **not** expected to debug `.cs` or `.tsx` files. If the image fails to build, decide whether it's infra (base image tag, registry auth, network) or application (hand it back to the app team). **Do not edit application source under [workload-app/](../workload-app/)** — only the container build assets listed above (`Dockerfile`, `.dockerignore`, nginx config, entrypoint scripts) are platform-team property.
+Zone redundancy on Container Apps and Azure SQL is **only available in regions with 3 availability zones**. Confirm your region qualifies (e.g. `westeurope`, `northeurope`, `eastus2`, `swedencentral`). If your test region doesn't, either move prod to one that does or call out the limitation in the updated design — don't fake `zoneRedundant: true` in a region that can't support it; the deploy will fail at provisioning time.
+
+### Why "no code forks"
+
+A template with `if (env == 'prod')` branches looks fine until the first prod-only bug: you can't reproduce it in test, because test runs a different code path. Parameterising every difference means **the same lines of Bicep deploy both environments**, so a working test deployment is real evidence that prod will work too — only the values differ.
+
+### Info — multi-subscription topology (out of scope for this workshop)
+
+This workshop runs **everything in one subscription** — the hub VNet, the test workload, and the prod workload all live together. In a real landing zone, those typically split across subscriptions for blast-radius and billing isolation:
+
+```
+┌──────────────────────────────────┐
+│  connectivity-subscription       │
+│  ┌────────────────────────────┐  │
+│  │ rg-platform                │  │
+│  │   └── vnet-hub             │  │
+│  └────────────────────────────┘  │
+└──────────────▲───────▲───────────┘
+               │       │
+       peering │       │ peering
+               │       │
+┌──────────────┼───┐ ┌─┼──────────────────┐
+│ workload-    │   │ │ │ workload-        │
+│ test-sub     │   │ │ │ prod-sub         │
+│ ┌────────────┴─┐ │ │ ┌┴─────────────┐   │
+│ │ rg-workload- │ │ │ │ rg-workload- │   │
+│ │  01-test     │ │ │ │  01-prod     │   │
+│ │   └── vnet-  │ │ │ │   └── vnet-  │   │
+│ │   workload-  │ │ │ │   workload-  │   │
+│ │   test       │ │ │ │   prod       │   │
+│ └──────────────┘ │ │ └──────────────┘   │
+└──────────────────┘ └────────────────────┘
+```
+
+Two practical consequences if you ever do this:
+
+- The deploy identity (or your interactive `az login` context) needs to be **set to the workload subscription** for the workload deployment, but the peering operation **also writes to the hub VNet**, which is in a different subscription. You either give the identity `Network Contributor` cross-sub on the hub VNet resource, or you split the peering into a separate deployment that runs in the hub subscription.
+- The hub VNet's **subscription ID** becomes a real parameter — you can no longer rely on `subscription().subscriptionId` for the hub side of the peering. The parameter file for each workload env carries the hub subscription ID and the hub VNet resource ID explicitly.
+
+We're not doing this in the workshop — calling it out only so you know what the parameterised template would need to grow into when you take it back to your own landing zone.

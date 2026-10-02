@@ -1,29 +1,27 @@
-# Chore 11 — Commit and push the workflows, leave a clean working tree
+# Chore 11 — Prove the infra pipeline by retagging the workload
 
-The two workflow files only take effect once they are on `main` of your remote. Land them
-cleanly and confirm the working tree is clean.
+Prove the infra pipeline reacts to a real change with the smallest, safest edit possible: a
+tag change. Tags don't move or restart resources, and what-if makes the diff obvious.
 
 ## Requirements
 
-- The staged diff is **inspected before committing** — only the workflow YAMLs and related docs
-  land. No application source, no container build assets, no parameter files with real
-  subscription IDs, no local-only files.
-- The work is committed cleanly (one commit per workflow, plus docs) and pushed to `main` so
-  the workflows take effect.
+- One tag is changed or added on the workload Bicep under `infra/workload-01/`.
+- The change is **minimal and reversible** — what-if shows only tag deltas.
+- Preflight runs locally first and confirms only tag deltas appear.
+- The change is committed and pushed to `main`.
 
 ## Success criteria
 
 **Done when**
-- Both workflows exist on `main` and the working tree is clean.
+- The `infra-deploy` workflow runs from your commit and applies the tag to both environments.
 
 **Verify**
-- `git status` reports `nothing to commit, working tree clean`.
-- On the **Actions** tab, both workflows are listed and dispatchable.
-- On **Settings → Environments**, `test` and `prod` exist with federated credentials,
-  variables, and (for `prod`) required reviewers.
+- `lint` and `deploy-test` go green; the test job summary shows **only** the tag change.
+- `deploy-prod` waits for approval, then applies the same tag to the prod resource group.
+- The tag matches across both resource groups afterwards.
 
 **Enough to move on**
-- The workflows are live on the remote and the environments are correctly configured.
+- A trivial infra change flowed lint → OIDC → what-if → deploy → approval end-to-end.
 
 ---
-Background, the inspection commands, and why this is its own chore: [details-11.md](details-11.md).
+Background, candidate tag edits, and trigger troubleshooting: [details-11.md](details-11.md).

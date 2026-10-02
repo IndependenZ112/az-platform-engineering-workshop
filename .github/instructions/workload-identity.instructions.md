@@ -36,7 +36,7 @@ most common cause of an `UNAUTHORIZED` pull at rollout time:
    `7f951dda-4ed3-4680-a7ca-43fe172d538d`) granted **on the registry scope**, from the Bicep
    that provisions the identity — not a post-deploy script.
 2. The container app's **`registries[]`** entry references that same managed identity as its
-   `identity`. Without this the placeholder MCR image still runs (MCR is anonymous) but the
+   `identity`. Without this the public GHCR bootstrap image still runs anonymously, but the
    first pull of `*.azurecr.io/...` fails.
 
 There is **one** workshop ACR — it is **not** stamped out per environment by the workload

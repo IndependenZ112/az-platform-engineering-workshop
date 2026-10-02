@@ -12,8 +12,12 @@ workload in the existing spoke without re-opening architectural decisions.
 - Identity is wired end-to-end with **user-assigned managed identities** and **no secrets** in
   parameters, outputs, or configuration. Authentication between Azure services is
   identity-based throughout.
-- Each container app pulls its image from ACR **using its own managed identity** (registry
-  admin user stays disabled).
+- The first deployment uses the public workshop images
+  (`ghcr.io/azureholic/az-platform-engineering-workshop/backend:latest` and
+  `ghcr.io/azureholic/az-platform-engineering-workshop/frontend:latest`). The frontend gets a
+  `BACKEND_URL` environment variable containing the backend's internal HTTPS ingress URL.
+- Each container app is also prepared to pull later releases from ACR **using its own managed
+  identity** (registry admin user stays disabled).
 - The **backend's managed identity is the SQL server's Microsoft Entra admin, set
   declaratively in Bicep**, with Microsoft Entra-only authentication enabled. No post-deploy
   admin commands, no deployment scripts, no jumpbox — the app creates its own schema on first
@@ -40,6 +44,8 @@ workload in the existing spoke without re-opening architectural decisions.
   disabled** (no `networkRuleSet`/`ipRules` lockdown).
 - Each app has a **user-assigned managed identity** with an **`AcrPull`** role assignment on
   the registry scope, and that identity is referenced in the app's `registries[]` entry.
+- The initial container image references point to the public GHCR packages, and the frontend's
+  `BACKEND_URL` points to the backend's internal ingress.
 - The SQL server's **Entra admin is the backend MI**, set declaratively, with Entra-only auth
   enabled and `publicNetworkAccess` disabled; the backend's connection string is built from
   resource properties with no secret.

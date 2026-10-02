@@ -1,27 +1,31 @@
-# Chore 12 — Prove the infra pipeline by retagging the workload
+# Chore 12 — Prove the app pipeline by rebranding the frontend
 
-Prove the infra pipeline reacts to a real change with the smallest, safest edit possible: a
-tag change. Tags don't move or restart resources, and what-if makes the diff obvious.
+Prove the app pipeline end-to-end with the smallest visible change: the page title. This
+chore edits **application source**, so you make the edit **by hand** — the platform tooling
+never writes to application source under `workload-app/`.
 
 ## Requirements
 
-- One tag is changed or added on the workload Bicep under `infra/workload-01/`.
-- The change is **minimal and reversible** — what-if shows only tag deltas.
-- Preflight runs locally first and confirms only tag deltas appear.
+- The `<title>` in [workload-app/frontend/index.html](../workload-app/frontend/index.html) is
+  changed **by hand** to something with your own name/team in it. Nothing else in
+  `workload-app/` changes.
 - The change is committed and pushed to `main`.
 
 ## Success criteria
 
 **Done when**
-- The `infra-deploy` workflow runs from your commit and applies the tag to both environments.
+- The `app-deploy` workflow runs and promotes one image through test to prod.
 
 **Verify**
-- `lint` and `deploy-test` go green; the test job summary shows **only** the tag change.
-- `deploy-prod` waits for approval, then applies the same tag to the prod resource group.
-- The tag matches across both resource groups afterwards.
+- The run goes `build` → `deploy-test` → `smoke-test` → `deploy-prod` (waiting for approval).
+- After approval, the test and prod frontend URLs both show the new title in the browser tab.
+- `az containerapp show` on test and prod returns the **same image digest** — prod ran the
+  exact artifact that passed test.
+- `infra-deploy` does **not** run (its filter is `infra/**`).
 
 **Enough to move on**
-- A trivial infra change flowed lint → OIDC → what-if → deploy → approval end-to-end.
+- You watched the same built image flow test → smoke → prod, with the change visible in the
+  browser.
 
 ---
-Background, candidate tag edits, and trigger troubleshooting: [details-12.md](details-12.md).
+Background and how to find the title safely (without editing app source for you): [details-12.md](details-12.md).
