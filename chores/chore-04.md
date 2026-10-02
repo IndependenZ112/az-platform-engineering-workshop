@@ -16,8 +16,8 @@ preflight comes first.
 ## Success criteria
 
 **Done when**
-- The workload infrastructure exists in the subscription and is fully private except the
-  registry and frontend.
+- The workload infrastructure exists in the subscription and is private except for the
+  frontend and Monitor services, which retain their intended public endpoints.
 
 **Verify**
 - The second deploy's what-if shows zero changes.
@@ -25,8 +25,8 @@ preflight comes first.
   private IP, and that IP sits inside the private-endpoint subnet.
 - From outside the spoke, the SQL FQDN resolves through a `privatelink.*` CNAME but a direct
   connection refuses (public access disabled).
-- Container apps exist with `minReplicas = 0`, ACR admin user disabled, and both apps pull
-  their public GHCR images without registry credentials.
+- Container apps exist with `minReplicas = 0` and pull their public GHCR images without
+  registry credentials.
 - The frontend's public URL loads the hotel SPA, `/api/hotels` returns JSON through the
   frontend proxy, and both container apps report healthy revisions.
 

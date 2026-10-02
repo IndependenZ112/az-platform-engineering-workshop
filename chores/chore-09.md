@@ -1,15 +1,14 @@
 # Chore 9 — Commit and push the workflows, leave a clean working tree
 
-The two workflow files only take effect once they are on `main` of your remote. Land them
-cleanly and confirm the working tree is clean.
+The infrastructure and image-publishing workflows only take effect once they are on your
+remote. Land them cleanly and confirm the working tree is clean.
 
 ## Requirements
 
-- The staged diff is **inspected before committing** — only the workflow YAMLs and related docs
-  land. No application source, no container build assets, no parameter files with real
+- The staged diff is **inspected before committing** — workflow YAMLs, related docs, and any
+  pending container build assets land. No application source, no parameter files with real
   subscription IDs, no local-only files.
-- The work is committed cleanly (one commit per workflow, plus docs) and pushed to `main` so
-  the workflows take effect.
+- The work is committed cleanly and pushed to `main` so the workflows take effect.
 
 ## Success criteria
 
@@ -18,7 +17,8 @@ cleanly and confirm the working tree is clean.
 
 **Verify**
 - `git status` reports `nothing to commit, working tree clean`.
-- On the **Actions** tab, both workflows are listed and dispatchable.
+- On the **Actions** tab, the infrastructure workflow is listed and dispatchable; the
+  image-publishing workflow is listed and triggers on pushes that change `workload-app/`.
 - On **Settings → Environments**, `test` and `prod` exist with federated credentials,
   variables, and (for `prod`) required reviewers.
 

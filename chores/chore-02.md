@@ -18,8 +18,8 @@ it. This chore produces a **design, not Bicep**.
   carries the `test` environment token from the start (e.g. `rg-workload-01-test`,
   `ca-hotelapi-test-<region>-001`).
 - The design is **Well-Architected**, **scale-to-zero**, and uses **private endpoints for
-  every PaaS service** — with the two documented exceptions (container registry and the
-  user-facing frontend stay public).
+  private workload PaaS services**. The frontend and Monitor ingestion/query endpoints remain
+  public; GHCR is external to the Azure workload.
 - The design names a **dedicated CI/CD managed identity per environment**, separate from any
   runtime managed identity on the container apps, and records its intended scope.
 - The design records **decisions with rationale**, and is detailed enough that a follow-up
@@ -30,11 +30,12 @@ it. This chore produces a **design, not Bicep**.
 
 **Done when**
 - A design document and diagram exist in `docs/` and cover compute, data, networking,
-  identity, registry, DNS, and inbound exposure.
+  identity, GHCR image references, DNS, and inbound exposure.
 - Naming, the private-endpoint posture, and the runtime-vs-CI identity split are all explicit.
 
 **Verify**
-- Every PaaS service is private except the registry and the frontend, with a stated reason.
+- Private workload PaaS services are private; the frontend and Monitor stack are the only
+  public workload endpoints, and GHCR is identified as the external public image source.
 - Each major choice has a one-line rationale (Reliability / Security / Cost / Ops / Perf).
 
 **Enough to move on**

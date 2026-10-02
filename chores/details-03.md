@@ -7,7 +7,7 @@ The design from the previous chore is signed off. Turn it into **deployable Bice
 ### Hints
 
 - Bicep under `infra/workload-01/`. Use AVM wherever a module exists; raw `Microsoft.*` only with an inline comment explaining the gap.
-- CAF naming — see [.github/instructions/azure-naming.instructions.md](../.github/instructions/azure-naming.instructions.md). Every name embeds the `test` environment segment (`rg-workload-01-test`, `vnet-spoke-workload01-test-<region>-001`, `kv-hotelapi-test-<region>-001`, `id-hotelapi-test-<region>-001`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, `crhotelapitest<region>001`, etc.).
+- CAF naming — see [.github/instructions/azure-naming.instructions.md](../.github/instructions/azure-naming.instructions.md). Every Azure resource name embeds the `test` environment segment (`rg-workload-01-test`, `vnet-spoke-workload01-test-<region>-001`, `kv-hotelapi-test-<region>-001`, `id-hotelapi-test-<region>-001`, `ca-hotelapi-test-<region>-001`, `cae-hotelapi-test-<region>-001`, `sql-hotelapi-test-<region>-001`, etc.).
 - If you discover a design gap while writing Bicep, **fix it in the design doc and diagram first**, then change the template.
 - Identity wiring:
   - The app images are public GHCR packages and require no image-pull role assignment, registry credentials, or `registries[]` configuration.
@@ -35,8 +35,8 @@ The design from the previous chore is signed off. Turn it into **deployable Bice
 By the end of this chore you have a **complete, reviewable Bicep template** under `infra/workload-01/` plus the `Deploy-Workload.ps1` wrapper — authored, not yet deployed (the deploy is a follow-up chore). Concretely:
 
 - The template compiles and lints clean, and `azure-deployment-preflight` (what-if + permission check) against `rg-workload-01-test` runs with no surprises.
-- Reading the template confirms the guardrails: ACR public with the admin user disabled; public GHCR images with no registry credentials; the backend MI as the SQL Entra admin with Entra-only auth and `publicNetworkAccess` disabled; a secret-free, MI-based connection string; and private endpoints with distributed Private DNS for every private PaaS service.
-- The only public surface the template defines is the frontend FQDN and the container registry; everything else is private.
+- Reading the template confirms the guardrails: no Azure Container Registry or image-pull role assignments; public GHCR images with no registry credentials; the backend MI as the SQL Entra admin with Entra-only auth and `publicNetworkAccess` disabled; a secret-free, MI-based connection string; and private endpoints with distributed Private DNS for every private PaaS service.
+- The only public workload surfaces are the frontend FQDN and Monitor ingestion/query endpoints; all other workload services are private.
 - The what-if previews a scale-to-zero resting footprint that matches the design's cost estimate.
 
 The template is ready to deploy in the next chore.

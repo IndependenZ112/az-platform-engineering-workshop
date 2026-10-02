@@ -18,16 +18,16 @@ Doing this once in a script (not by clicking) means:
 
 ### Hints
 
-Write the bootstrap as a single idempotent PowerShell 7 script (every `az` / `gh` call checks-then-writes, so a re-run is a clean no-op). It should accept parameters for the workload name, the environments to provision (`test`, `prod`), the hub resource group and VNet name, the ACR (resource group + name, defaulting to a lookup in the workload RG), the location, and the repo owner/name (defaulting to values inferred from `gh repo view`).
+Write the bootstrap as a single idempotent PowerShell 7 script (every `az` / `gh` call checks-then-writes, so a re-run is a clean no-op). It should accept parameters for the workload name, the environments to provision (`test`, `prod`), the hub resource group and VNet name, the location, and the repo owner/name (defaulting to values inferred from `gh repo view`).
 
 Per environment, the loop does the following:
 
-1. Resolve the workload RG (`rg-$WorkloadName-$env`), the ACR (lookup if not provided), and the subscription/tenant from `az account show`.
+1. Resolve the workload RG (`rg-$WorkloadName-$env`) and the subscription/tenant from `az account show`.
 2. **Create the deploy identity** if missing — a user-assigned managed identity named `id-github-$WorkloadName-$env-$Location-001` in the workload RG.
 
 3. **Assign roles** (each `az role assignment create` is naturally idempotent — the same scope+principal+role re-run is a 200):
 
-   - `Owner` on the workload RG (needed to create role assignments for the runtime managed identities during a deploy).
+   - `Contributor` on the workload RG.
    - `Network Contributor` on the hub VNet **resource** — look up its resource ID and scope to that, **not** the whole hub RG.
 
 4. **Federated credential** whose `subject` is exactly `repo:<owner>/<repo>:environment:<env>`, with issuer `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`. This subject string is the single most error-prone value — generate it from variables, don't type it — and pass the JSON over stdin (`--parameters @-`) so PowerShell quoting can't corrupt it. A re-run with the same `name` returns 409: prefer `az identity federated-credential update` over delete-then-create so the credential's object ID is preserved.
@@ -46,7 +46,7 @@ Two deploy identities exist with the right scopes; both can mint Azure tokens fr
 
 ### Why this is its own chore
 
-OIDC bootstrap fails silently in obvious-looking ways: a typo in the subject string returns `AADSTS70021: No matching federated identity record found`, which surfaces only inside the workflow run an hour later. Splitting the wiring (this chore) from the workflow YAML (next two chores) means you debug each in isolation — and once it works, this chore is a single script you re-run for any new fork/clone.
+OIDC bootstrap fails silently in obvious-looking ways: a typo in the subject string returns `AADSTS70021: No matching federated identity record found`, which surfaces only inside the workflow run an hour later. Keeping federation setup separate from the infrastructure workflow YAML means you can debug each in isolation — and once it works, this chore is a single script you re-run for any new fork/clone.
 
 ### Safety note
 

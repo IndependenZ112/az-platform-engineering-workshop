@@ -40,8 +40,8 @@ workload in the existing spoke without re-opening architectural decisions.
   the target resource group — without surprises in the what-if.
 
 **Verify** (by inspecting the Bicep / lint / what-if — nothing is deployed in this chore)
-- The container registry is set to **`publicNetworkAccess` enabled** with the **admin user
-  disabled** (no `networkRuleSet`/`ipRules` lockdown).
+- No Azure Container Registry is provisioned for workload images; the container apps use the
+  public GHCR images without image-pull role assignments.
 - The initial container image references point to the public GHCR packages, and the frontend's
   `BACKEND_URL` points to the backend's internal ingress.
 - The SQL server's **Entra admin is the backend MI**, set declaratively, with Entra-only auth
