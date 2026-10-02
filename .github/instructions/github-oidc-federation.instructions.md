@@ -25,8 +25,11 @@ wrong.
     `Microsoft.Resources/deployments/write` at RG scope. Scoping to just the VNet resource
     fails with `AuthorizationFailed` on `<deploymentName>-virtualNetworkPeering-remote-0`.
 
-The GHCR image-build workflow uses the repository-scoped `GITHUB_TOKEN` with
-`packages: write`; it does not require an Azure deploy identity or ACR push permissions.
+The GHCR image-build workflow runs when `workload-app/` changes (and supports manual
+dispatch), using the repository-scoped `GITHUB_TOKEN` with `packages: write`; it does not
+require an Azure deploy identity. It publishes commit-SHA tags and `latest` on the default
+branch. Set both GHCR packages to public separately so Azure Container Apps can pull them
+anonymously; the workflow does not change package visibility.
 
 ## Federated credential — get the subject exactly right
 

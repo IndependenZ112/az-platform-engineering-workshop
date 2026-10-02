@@ -1,6 +1,6 @@
 ---
 applyTo: '**/*.bicep,**/*.bicepparam,**/infra/**,**/infrastructure/**'
-description: 'Passwordless identity wiring for the workshop workload — managed identities, ACR pull, SQL Entra admin, and the no-secrets contract. Use when designing or implementing any Bicep that touches identity, Azure SQL, Container Apps, or the container registry.'
+description: 'Passwordless identity wiring for the workshop workload — managed identities, anonymous GHCR image pulls, SQL Entra admin, and the no-secrets contract. Use when designing or implementing any Bicep that touches identity, Azure SQL, or Container Apps.'
 ---
 
 # Workload identity & passwordless access
@@ -12,7 +12,7 @@ doc for the workload spoke. They complement — not replace —
 [workload-network-exposure](workload-network-exposure.instructions.md).
 
 The non-negotiable outcome: **identity is the only credential**. If you find yourself adding
-a SQL password, an ACR admin username/password, a connection-string secret, or a Key Vault
+a SQL password, container registry credentials, a connection-string secret, or a Key Vault
 round-trip just to authenticate a first-party Azure service to another, stop — you have taken
 a wrong turn.
 
@@ -29,10 +29,11 @@ a wrong turn.
 ## Pulling public images from GHCR
 
 The backend and frontend container images are published as public GHCR packages. Container
-apps pull them anonymously; do not configure ACR credentials, managed-identity `AcrPull`
+apps pull them anonymously; do not configure image-pull credentials, registry-specific role
 assignments, or `registries[]` entries for these images. The image workflow authenticates to
 GHCR with its repository-scoped `GITHUB_TOKEN` and `packages: write`; it does not use an Azure
-deploy identity.
+deploy identity. The packages must be configured as public in GHCR because the workflow does
+not change package visibility.
 
 ## Azure SQL: managed identity is the Entra admin
 
