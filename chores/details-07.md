@@ -8,7 +8,7 @@ Doing this once in a script (not by clicking) means:
 
 - A future fork/re-run only re-executes the script — no portal trail.
 - The federated-credential subject (`repo:<owner>/<repo>:environment:<env>`) is generated, not typed — this is the single most common one-shot failure when participants set OIDC up by hand.
-- Subsequent chores (the staged infra and app workflows) become pure YAML authoring — federation already works.
+- The staged infrastructure workflow can then use this federation without any long-lived credentials.
 
 ### Prereqs
 
@@ -29,7 +29,6 @@ Per environment, the loop does the following:
 
    - `Owner` on the workload RG (needed to create role assignments for the runtime managed identities during a deploy).
    - `Network Contributor` on the hub VNet **resource** — look up its resource ID and scope to that, **not** the whole hub RG.
-   - `AcrPush` on the ACR resource ID (only the app workflow uses this, but the infra workflow shares the identity for simplicity).
 
 4. **Federated credential** whose `subject` is exactly `repo:<owner>/<repo>:environment:<env>`, with issuer `https://token.actions.githubusercontent.com` and audience `api://AzureADTokenExchange`. This subject string is the single most error-prone value — generate it from variables, don't type it — and pass the JSON over stdin (`--parameters @-`) so PowerShell quoting can't corrupt it. A re-run with the same `name` returns 409: prefer `az identity federated-credential update` over delete-then-create so the credential's object ID is preserved.
 
@@ -51,4 +50,4 @@ OIDC bootstrap fails silently in obvious-looking ways: a typo in the subject str
 
 ### Safety note
 
-The `Owner` role on the workload RG is intentional but **narrowly scoped**: the deploy identity needs to grant `AcrPull` to runtime managed identities during a deploy, which requires write access on `Microsoft.Authorization/roleAssignments` at that scope. It has **no rights** outside the workload RG except `Network Contributor` on the single hub VNet resource. Do not widen the scope to the subscription — `User Access Administrator` on the workload RG is an acceptable alternative if you want to split create-resources from grant-roles, but the simpler `Owner` is fine for the workshop.
+The `Contributor` role on the workload RG is scoped to deploying that environment's resources. The identity has **no rights** outside the workload RG except `Network Contributor` on the single hub VNet resource. Do not widen either scope to the subscription.

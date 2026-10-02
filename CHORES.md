@@ -10,9 +10,7 @@ Work through these in order with GitHub Copilot in agent mode. Each chore lists 
 6. [Chore 6 — Publish your work to your own GitHub repo](chores/chore-06.md)
 7. [Chore 7 — Bootstrap GitHub Actions OIDC federation per environment](chores/chore-07.md)
 8. [Chore 8 — Automate infra deployment with a staged GitHub Actions workflow](chores/chore-08.md)
-9. [Chore 9 — Automate app container deployment with a build-once, promote-everywhere workflow](chores/chore-09.md)
-10. [Chore 10 — Commit and push the workflows, leave a clean working tree](chores/chore-10.md)
-11. [Chore 11 — Prove the infra pipeline by retagging the workload](chores/chore-11.md)
-12. [Chore 12 — Prove the app pipeline by rebranding the frontend](chores/chore-12.md)
+9. [Chore 9 — Commit and push the workflows, leave a clean working tree](chores/chore-09.md)
+10. [Chore 10 — Prove the infra pipeline by retagging the workload](chores/chore-10.md)
 
 More chores will be added as the workshop grows.

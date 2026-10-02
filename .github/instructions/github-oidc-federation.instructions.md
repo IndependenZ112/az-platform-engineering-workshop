@@ -17,21 +17,16 @@ wrong.
   GitHub Actions, **separate** from any runtime identity on the container apps (see
   [workload-identity](workload-identity.instructions.md)).
 - Scope each deploy identity to exactly:
-  - **`Owner`** on its **own workload resource group** — needed because a deploy creates role
-    assignments (e.g. granting `AcrPull` to runtime identities). `User Access Administrator`
-    + `Contributor` is an acceptable split; subscription-level scope is not.
+  - **`Contributor`** on its **own workload resource group** — enough to deploy the workload
+    resources without granting unnecessary role-assignment permissions.
   - **`Network Contributor`** on the **hub resource group** — needed both to write the
     spoke→hub peering on the hub VNet *and* because the AVM `virtualNetwork` module creates
     the **remote** peering via a nested deployment in the hub RG, which requires
     `Microsoft.Resources/deployments/write` at RG scope. Scoping to just the VNet resource
     fails with `AuthorizationFailed` on `<deploymentName>-virtualNetworkPeering-remote-0`.
-  - **`AcrPush`** on the **single shared workload container registry** — both the test and
-    prod deploy identities push to the same ACR. There is only one registry in the workshop
-    (see [build-once-promote-everywhere](build-once-promote-everywhere.instructions.md));
-    test and prod runtime identities both pull from it. Do **not** add an extra `AcrPull on
-    the other environment's registry` role and do **not** call `az acr import` between
-    registries — that would mean two registries exist, which already breaks the build-once
-    contract. The fix is one ACR, not cross-registry plumbing.
+
+The GHCR image-build workflow uses the repository-scoped `GITHUB_TOKEN` with
+`packages: write`; it does not require an Azure deploy identity or ACR push permissions.
 
 ## Federated credential — get the subject exactly right
 

@@ -5,7 +5,7 @@ description: 'Workload network exposure rules. Use when designing, reviewing, or
 
 # Workload network exposure rules
 
-These rules are **not negotiable** and apply to every design document, diagram, Bicep file, and chore artifact in this repo. They exist because the automated delivery workflow depends on this exact topology (ACR build agents must be reachable, Monitor ingestion endpoints must be reachable from the runtime, and the SPA is the only user-facing surface). Locking these down breaks the workshop.
+These rules are **not negotiable** and apply to every design document, diagram, Bicep file, and chore artifact in this repo. They preserve the workshop topology: the shared ACR and Monitor ingestion endpoints remain public, and the SPA is the only user-facing workload surface. Locking these down breaks the workshop.
 
 ## Services that MUST stay public
 
@@ -13,7 +13,7 @@ The following resources are **public on purpose**. Do not put them behind a priv
 
 | Resource | Reason it stays public |
 | --- | --- |
-| Azure Container Registry (ACR) | Automated builds and image pulls need public reachability; the registry is workshop-shared. **Must be set to "Allow All Networks"** — no IP allowlist, no selected-networks rules, no service-endpoint-only access. ACR Tasks build agents come from Microsoft-managed IP space that is not in the workshop spoke, so any network restriction will break the delivery workflow. |
+| Azure Container Registry (ACR) | The shared workshop registry remains public by design. **Must be set to "Allow All Networks"** — no IP allowlist, no selected-networks rules, no service-endpoint-only access. Workload application images are published to GHCR, not this ACR. |
 | Log Analytics workspace | Monitor ingestion + query for the workshop runs over the public endpoint. |
 | Application Insights | Telemetry ingestion from the workload runs over the public endpoint. |
 | Data Collection Endpoint / Data Collection Rule (if used) | Same ingestion path as above. |

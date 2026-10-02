@@ -8,9 +8,8 @@ secret**. Do it once, in a re-runnable script — no portal clicks.
 - A PowerShell script provisions the **GitHub Actions deploy identity per environment**
   end-to-end — idempotently, with no manual portal steps.
 - Per environment, a **user-assigned managed identity** dedicated to GitHub Actions (separate
-  from any runtime identity) is created and scoped to: **`Owner`** on its own workload RG,
-  **`Network Contributor`** on the hub VNet resource, and **`AcrPush`** on the workload
-  registry.
+  from any runtime identity) is created and scoped to: **`Contributor`** on its own workload RG and
+  **`Network Contributor`** on the hub VNet resource.
 - Each deploy identity gets a **federated credential** whose subject targets the matching
   GitHub Environment (`repo:<owner>/<repo>:environment:<env>`).
 - The script creates the **GitHub Environments** `test` and `prod` and sets the four

@@ -28,7 +28,7 @@ GitHub Environments do the gating, not workflow logic (also already configured):
 - `test`: no protection rules. Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP=rg-workload-01-test`. The `deploy-shared` job runs under this identity too and targets the shared RG (e.g. `rg-workload-shared`); the shared RG name is a workflow-level constant rather than a per-env variable so it does not silently fork between envs.
 - `prod`: **required reviewers** (at least one human), optional wait timer. Same four variables pointing at the prod deploy identity and `rg-workload-01-prod`.
 
-For the `deploy-shared` identity to deploy into the shared RG, it needs `Owner` (or `Contributor` + `User Access Administrator`) on that RG — same scoping rule as the per-env workload RGs (see [github-oidc-federation](../.github/instructions/github-oidc-federation.instructions.md)). It only ever holds `AcrPush` on the one shared registry; per-env identities pick up the registry resource id from the `deploy-shared` outputs and grant their runtime MIs `AcrPull` on it from the workload Bicep.
+For the `deploy-shared` identity to deploy into the shared RG, it needs `Contributor` on that RG — the same least-privilege scope used for per-environment workload deployments (see [github-oidc-federation](../.github/instructions/github-oidc-federation.instructions.md)). The infrastructure workflow provisions the shared ACR; workload images are built and published separately to GHCR.
 
 Two `bicepparam` files (`main.test.bicepparam`, `main.prod.bicepparam`) are the **only** thing that differs between the per-env stages. The workload template is identical and both stages reference the same shared resource ids emitted by `deploy-shared`.
 

@@ -26,26 +26,13 @@ a wrong turn.
   data-plane rights. (CI identity scoping lives in
   [github-oidc-federation](github-oidc-federation.instructions.md).)
 
-## Pulling images from ACR with a managed identity
+## Pulling public images from GHCR
 
-The admin user on the registry stays **disabled**. Each container app pulls with its own
-managed identity, which requires **two** things wired together — missing either one is the
-most common cause of an `UNAUTHORIZED` pull at rollout time:
-
-1. The managed identity holds **`AcrPull`** (role definition id
-   `7f951dda-4ed3-4680-a7ca-43fe172d538d`) granted **on the registry scope**, from the Bicep
-   that provisions the identity — not a post-deploy script.
-2. The container app's **`registries[]`** entry references that same managed identity as its
-   `identity`. Without this the public GHCR bootstrap image still runs anonymously, but the
-   first pull of `*.azurecr.io/...` fails.
-
-There is **one** workshop ACR — it is **not** stamped out per environment by the workload
-template. The workload Bicep takes the registry **resource id** as a parameter and grants
-each environment's runtime managed identity `AcrPull` on that single registry, so test and
-prod container apps both reference the same `loginServer` in `registries[]`. Provisioning a
-second ACR for prod (or any per-env duplicate) breaks
-[build-once-promote-everywhere](build-once-promote-everywhere.instructions.md) — fix the
-topology, do not work around it with `az acr import`.
+The backend and frontend container images are published as public GHCR packages. Container
+apps pull them anonymously; do not configure ACR credentials, managed-identity `AcrPull`
+assignments, or `registries[]` entries for these images. The image workflow authenticates to
+GHCR with its repository-scoped `GITHUB_TOKEN` and `packages: write`; it does not use an Azure
+deploy identity.
 
 ## Azure SQL: managed identity is the Entra admin
 
