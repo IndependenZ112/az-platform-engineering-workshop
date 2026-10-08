@@ -1,0 +1,176 @@
+name: Infra deploy
+
+# Staged infrastructure pipeline: lint -> auto-deploy test -> human-gated deploy prod.
+# Both stages deploy the exact same template (infra/main.bicep); only the parameter file differs.
+# Authentication is OIDC federation only — no secrets. Each deploy job's GitHub Environment
+# supplies the AZURE_* variables for that environment's dedicated deploy identity.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - infra/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a deployment mid-flight; queue runs instead so state is never left half-applied.
+concurrency:
+  group: infra-deploy
+  cancel-in-progress: false
+
+env:
+  TEMPLATE_FILE: infra/main.bicep
+
+jobs:
+  lint:
+    name: Lint Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build and lint every Bicep file under infra/
+        shell: bash
+        run: |
+          status=0
+          while IFS= read -r file; do
+            echo "::group::$file"
+            az bicep build --file "$file" --stdout > /dev/null || { echo "::error file=$file::bicep build failed"; status=1; }
+            az bicep lint --file "$file" || { echo "::error file=$file::bicep lint failed"; status=1; }
+            echo "::endgroup::"
+          done < <(find infra -name '*.bicep' | sort)
+          exit $status
+
+      - name: Build every parameter file under infra/
+        shell: bash
+        run: |
+          status=0
+          while IFS= read -r file; do
+            echo "::group::$file"
+            az bicep build-params --file "$file" --stdout > /dev/null || { echo "::error file=$file::bicep build-params failed"; status=1; }
+            echo "::endgroup::"
+          done < <(find infra -name '*.bicepparam' | sort)
+          exit $status
+
+  deploy-test:
+    name: Deploy test
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # `test` is an unprotected GitHub Environment: it deploys without waiting for approval.
+    environment: test
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      PARAMETER_FILE: infra/main.test.bicepparam
+      ENVIRONMENT_NAME: test
+      AZURE_CORE_NO_COLOR: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-if
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set +e
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-$ENVIRONMENT_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMETER_FILE" > whatif.txt 2>&1
+          status=$?
+          set -e
+          {
+            echo "### What-if: $ENVIRONMENT_NAME ($AZURE_RESOURCE_GROUP)"
+            echo
+            echo '```'
+            cat whatif.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Deploy
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-$ENVIRONMENT_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMETER_FILE" \
+            --output none
+
+  deploy-prod:
+    name: Deploy prod
+    needs: deploy-test
+    # The `prod` GitHub Environment requires a human reviewer, so this job waits for approval.
+    # The branch restriction lives here: prod only ever deploys from main, whatever triggered the run.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      PARAMETER_FILE: infra/main.prod.bicepparam
+      ENVIRONMENT_NAME: prod
+      AZURE_CORE_NO_COLOR: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-if
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set +e
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-$ENVIRONMENT_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMETER_FILE" > whatif.txt 2>&1
+          status=$?
+          set -e
+          {
+            echo "### What-if: $ENVIRONMENT_NAME ($AZURE_RESOURCE_GROUP)"
+            echo
+            echo '```'
+            cat whatif.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Deploy
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "infra-$ENVIRONMENT_NAME-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMETER_FILE" \
+            --output none

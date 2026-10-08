@@ -353,6 +353,38 @@ of `test` and `prod`) and the GitHub Environment/variables is a follow-up implem
 not an open design question — the identities, their names, and their exact scopes are fixed
 here, per environment.
 
+### 7.1 Infrastructure deployment pipeline
+
+[.github/workflows/infra-deploy.yml](../.github/workflows/infra-deploy.yml) deploys
+infrastructure on every push to `main` that touches `infra/**`, and on manual dispatch, as three
+chained jobs: **`lint`** (Bicep build + lint of every file under `infra/`, no Azure login) →
+**`deploy-test`** (GitHub Environment `test`, unprotected, deploys automatically) →
+**`deploy-prod`** (GitHub Environment `prod`, waits for a required reviewer, runs only from
+`main`). Each deploy job logs in with `azure/login` over OIDC using that environment's
+`vars.AZURE_*`, runs `what-if` first and writes it to the job summary, then deploys. Because
+the approval gate sits before the job starts, the `prod` what-if is produced right after
+approval, immediately ahead of the apply; the `test` run on the same commit is the preview.
+
+Both stages deploy the **same template**, [infra/main.bicep](../infra/main.bicep), selecting
+only `infra/main.test.bicepparam` or `infra/main.prod.bicepparam`. It is a thin
+resource-group-scoped composition of the spoke VNet + hub peering (the same AVM module the
+spoke template uses) and the unchanged [infra/workload/main.bicep](../infra/workload/main.bicep),
+so one deployment covers the whole environment. It stays at **resource-group scope** because the
+CI/CD identities (§7) only hold `Contributor` on an existing workload resource group — they
+cannot deploy at subscription scope or create resource groups. The resource group itself is
+created once by [infra/spoke-network](../infra/spoke-network/main.bicep) (an onboarding step by a
+principal with subscription rights). A what-if of the composition against the live `test` and
+`prod` environments shows no creates or deletes — only the same server-defaulted property noise
+as the standalone templates — so adopting the pipeline does not change existing resources.
+
+The per-environment values in `infra/main.<env>.bicepparam` mirror the values in
+`infra/spoke-network` and `infra/workload`; when changing an environment's settings, update
+both places.
+
+"`prod` restricted to `main`" is enforced in the workflow (`if: github.ref ==
+'refs/heads/main'` on `deploy-prod`) rather than as a GitHub deployment-branch policy, matching
+this workshop's environment setup.
+
 ---
 
 ## 8. GHCR image references
