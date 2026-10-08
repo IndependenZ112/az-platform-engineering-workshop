@@ -1,0 +1,133 @@
+<mxfile host="app.diagrams.net" modified="2026-10-08T10:00:00.000Z" agent="copilot" version="24.0.0" type="device">
+  <diagram id="workload-test-arch" name="Hotel Booking - Test Architecture">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1050" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- External actors -->
+        <mxCell id="ext-users" value="End users (browser)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="40" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext-ghcr" value="GHCR (ghcr.io)&#10;Public image registry&#10;backend:latest / frontend:latest&#10;(external to the workload — anonymous pulls)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ext-gha" value="GitHub Actions (CI/CD)&#10;OIDC federated login&#10;no stored secrets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="id-cicd" value="id-cicd-hotelbooking-test&#10;(dedicated CI/CD UAMI, per environment)&#10;Contributor: rg-hotelbooking-test&#10;Network Contributor: rg-platform (hub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Azure subscription boundary -->
+        <mxCell id="sub" value="Azure subscription" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="40" width="1160" height="950" as="geometry" />
+        </mxCell>
+
+        <!-- Hub -->
+        <mxCell id="hub" value="Hub VNet — rg-platform (existing, read-only)&#10;vnet-hub 192.168.100.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="90" width="260" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="hub-subnets" value="AzureFirewallSubnet&#10;GatewaySubnet&#10;snet-shared-services" style="text;html=1;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="410" y="150" width="230" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Spoke -->
+        <mxCell id="spoke" value="Workload spoke — rg-hotelbooking-test&#10;vnet-hotelbooking-test-swedencentral-001 192.168.101.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="700" y="90" width="800" height="700" as="geometry" />
+        </mxCell>
+
+        <!-- peering edge -->
+        <mxCell id="e-peer" value="peered (bidirectional)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;html=1;" edge="1" parent="1" source="hub" target="spoke">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- snet-private-endpoints -->
+        <mxCell id="snet-pe" value="snet-private-endpoints&#10;192.168.101.0/26" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="730" y="150" width="260" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pe-sql" value="Private endpoint&#10;pep-sql-hotelbooking-test-001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="750" y="195" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pdns-sql" value="Private DNS zone&#10;privatelink.database.windows.net&#10;(hosted in rg-hotelbooking-test;&#10;linked to spoke + hub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="750" y="290" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pdns-hub" value="resolution link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;dashed=1;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.75;" edge="1" parent="1" source="pdns-sql" target="hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- snet-containerapps -->
+        <mxCell id="snet-ca" value="snet-containerapps 192.168.101.64/27&#10;(delegated: Microsoft.App/environments)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="150" width="460" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="cae" value="Container Apps Environment — cae-hotelbooking-test-swedencentral-001 (workload profiles, External: public static IP for the frontend)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=8;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="195" width="420" height="275" as="geometry" />
+        </mxCell>
+        <mxCell id="ca-web" value="ca-hotelweb-test-swedencentral-001&#10;frontend (nginx + React SPA)&#10;ingress: external (public)&#10;Consumption profile — scale to zero&#10;no managed identity (no Azure data-plane calls)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="250" width="380" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ca-api" value="ca-hotelapi-test-swedencentral-001&#10;backend (ASP.NET Core 10 minimal API)&#10;ingress: internal only&#10;Consumption profile — scale to zero" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="355" width="380" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e-web-api" value="BACKEND_URL (internal FQDN) / api proxied" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="ca-web" target="ca-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="id-hotelapi" value="id-hotelapi-test-swedencentral-001 (runtime UAMI, backend only) = SQL Entra admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="490" width="380" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-id-api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;dashed=1;html=1;" edge="1" parent="1" source="id-hotelapi" target="ca-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-api-pe" value="Entra Default Auth (no password)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.3;" edge="1" parent="1" source="ca-api" target="pe-sql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pe-sql" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;html=1;" edge="1" parent="1" source="pe-sql" target="sql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SQL (regional PaaS, not inside a subnet) -->
+        <mxCell id="sql" value="sql-hotelbooking-test-swedencentral-001&#10;sqldb-hotelbooking-test&#10;Entra-only auth · publicNetworkAccess: Disabled&#10;Entra admin = id-hotelapi-test (declarative)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;boundedLbl=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="600" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ingress from internet -->
+        <mxCell id="e-users-web" value="HTTPS (public)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;html=1;" edge="1" parent="1" source="ext-users" target="ca-web">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GHCR pulls (single fan-out note instead of two colliding labels) -->
+        <mxCell id="e-ghcr-web" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;html=1;exitX=1;exitY=0.3;entryX=0;entryY=0.3;" edge="1" parent="1" source="ext-ghcr" target="ca-web">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-ghcr-api" value="anonymous pulls (both apps)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;html=1;exitX=1;exitY=0.7;entryX=0;entryY=0.7;" edge="1" parent="1" source="ext-ghcr" target="ca-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CI/CD identity scope -->
+        <mxCell id="e-cicd-rg" value="Contributor" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;dashed=1;html=1;exitX=1;exitY=0.85;entryX=0;entryY=0.9;" edge="1" parent="1" source="id-cicd" target="spoke">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-cicd-hub" value="Network Contributor" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;dashed=1;html=1;exitX=1;exitY=0.15;entryX=0;entryY=0.9;" edge="1" parent="1" source="id-cicd" target="hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gha-cicd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d79b00;html=1;" edge="1" parent="1" source="ext-gha" target="id-cicd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Monitor (public, outside private boundary) -->
+        <mxCell id="monitor" value="Monitor stack — public endpoint (workshop requirement)&#10;log-hotelbooking-test-swedencentral-001 (Log Analytics)&#10;appi-hotelbooking-test-swedencentral-001 (Application Insights)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="830" width="750" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e-api-mon" value="OTLP (APPLICATIONINSIGHTS_CONNECTION_STRING)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="ca-api" target="monitor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-web-mon" value="OTLP traces (browser, via /otel)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;html=1;" edge="1" parent="1" source="ca-web" target="monitor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
