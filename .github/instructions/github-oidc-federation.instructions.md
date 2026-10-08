@@ -38,9 +38,15 @@ found`, and only inside the workflow run — not at bootstrap. Use:
 
 - **Issuer:** `https://token.actions.githubusercontent.com`
 - **Audience:** `api://AzureADTokenExchange`
-- **Subject:** `repo:<owner>/<repo>:environment:<env>` — generate it from the repo remote and
-  the environment name; never hand-type it. The `environment:` form must match the GitHub
-  Environment the job declares.
+- **Subject:** `<prefix>:environment:<env>` — where `<prefix>` is what GitHub actually puts in
+  the repo's OIDC tokens. Read it from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`:
+  new repositories use the **immutable** form
+  `repo:<owner>@<owner-id>/<repo>@<repo-id>` (`use_immutable_subject: true`, returned as
+  `sub_claim_prefix`), older ones `repo:<owner>/<repo>`. Never hand-type it, and don't assume
+  the name-based form — it fails with `AADSTS700213` inside the workflow run. The
+  `environment:` part must match the GitHub Environment the job declares. The immutable form
+  is preferred: it keeps working across repo renames and can't be claimed by a new repo that
+  reuses an old name.
 
 ## GitHub Environments and variables
 

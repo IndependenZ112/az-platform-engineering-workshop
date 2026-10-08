@@ -348,8 +348,8 @@ The frontend app has **no identity** — it makes no Azure data-plane calls (§1
 it one would be an unused credential.
 
 Wiring the federated credential (issuer `https://token.actions.githubusercontent.com`,
-audience `api://AzureADTokenExchange`, subject `repo:<owner>/<repo>:environment:<env>` for each
-of `test` and `prod`) and the GitHub Environment/variables is a follow-up implementation step,
+audience `api://AzureADTokenExchange`, subject `<repo OIDC subject prefix>:environment:<env>` for each
+of `test` and `prod` — the prefix being the repository's immutable-ID form reported by GitHub) and the GitHub Environment/variables is a follow-up implementation step,
 not an open design question — the identities, their names, and their exact scopes are fixed
 here, per environment.
 

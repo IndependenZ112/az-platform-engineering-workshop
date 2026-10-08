@@ -13,7 +13,8 @@
          on the hub resource group (see the NOTES section for why the hub *resource group*,
          not just the hub VNet resource).
       3. Creates or updates a federated credential whose subject targets the matching GitHub
-         Environment, generated from variables — never hand-typed.
+         Environment. The subject is built from the prefix GitHub reports for the repo
+         (immutable-ID form for new repos) — never hand-typed.
       4. Creates the GitHub Environment (`prod` gets required-reviewer protection; `test`
          stays unprotected) and publishes the four `AZURE_*` variables the deploy workflows
          need.
@@ -124,6 +125,19 @@ if (-not $RepoOwner -or -not $RepoName) {
 $repoFullName = "$RepoOwner/$RepoName"
 Write-Host "Repo: $repoFullName" -ForegroundColor Cyan
 
+# The subject prefix GitHub puts in every OIDC token is repo-specific: new repositories use an
+# immutable form that embeds the numeric owner and repo IDs (`repo:<owner>@<id>/<repo>@<id>`),
+# older ones use `repo:<owner>/<repo>`. Ask GitHub which one applies rather than guessing — a
+# mismatch fails only inside the workflow run, with AADSTS700213.
+$oidcConfig = gh api "repos/$repoFullName/actions/oidc/customization/sub" | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw "Could not read the OIDC subject configuration for '$repoFullName'." }
+if ($oidcConfig.use_default -ne $true) {
+    throw "'$repoFullName' uses a customized OIDC subject template; this script only supports the default subject."
+}
+$subjectPrefix = if ($oidcConfig.use_immutable_subject -eq $true) { $oidcConfig.sub_claim_prefix } else { "repo:$repoFullName" }
+if ([string]::IsNullOrWhiteSpace($subjectPrefix)) { throw "GitHub returned an empty OIDC subject prefix for '$repoFullName'." }
+Write-Host "OIDC subject prefix: $subjectPrefix" -ForegroundColor Cyan
+
 if (-not $ProdReviewerLogin) {
     $currentUser = gh api user | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw "gh api user failed — run 'gh auth login' first." }
@@ -183,7 +197,7 @@ foreach ($environmentName in $Environments) {
     Grant-RoleAssignmentIfMissing -PrincipalId $principalId -Role 'Network Contributor' -Scope $hubRgId
 
     # 3. Federated credential — subject generated from variables, never hand-typed.
-    $subject = "repo:${repoFullName}:environment:$environmentName"
+    $subject = "${subjectPrefix}:environment:$environmentName"
     $credentialName = "github-actions-$environmentName"
     Write-Host "  Federated credential subject: $subject" -ForegroundColor DarkGray
     $existingCredJson = az identity federated-credential show --identity-name $identityName --resource-group $workloadRgName --name $credentialName 2>$null
