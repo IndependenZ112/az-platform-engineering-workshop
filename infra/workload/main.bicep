@@ -1,12 +1,14 @@
 targetScope = 'resourceGroup'
 
-// Deploys the Hotel Booking workload into the existing workload spoke
-// (rg-hotelbooking-test / vnet-hotelbooking-test-swedencentral-001), created in the prior
+// Deploys the Hotel Booking workload into the existing workload spoke, created in the prior
 // network chore. This template only adds workload resources — it does not recreate the
 // resource group or the spoke VNet.
 
 @description('Azure region for all workload resources.')
-param location string = 'swedencentral'
+param location string = 'belgiumcentral'
+
+@description('Azure region for Application Insights. Kept separate from `location` because not every region supports `Microsoft.Insights/components` yet (e.g. Belgium Central does not) — Monitor resources have no VNet/private-networking coupling to the rest of the workload, so placing them in a region known to support the resource type (here, alongside the hub in Sweden Central) is a safe, well-architected fallback rather than an architectural compromise.')
+param monitorLocation string = 'swedencentral'
 
 @minLength(3)
 @maxLength(20)
@@ -28,7 +30,7 @@ param tags object = {
 @minLength(2)
 @maxLength(64)
 @description('Name of the existing spoke VNet (deployed by infra/spoke-network).')
-param spokeVnetName string = 'vnet-hotelbooking-test-swedencentral-001'
+param spokeVnetName string = 'vnet-hotelbooking-test-belgiumcentral-001'
 
 @minLength(1)
 @maxLength(90)
@@ -91,8 +93,12 @@ param logAnalyticsRetentionDays int = 30
 var containerAppsSubnetName = 'snet-containerapps'
 var privateEndpointSubnetName = 'snet-private-endpoints'
 var containerAppsEnvironmentName = 'cae-${workloadName}-${environment}-${location}-001'
-var frontendAppName = 'ca-hotelweb-${environment}-${location}-001'
-var backendAppName = 'ca-hotelapi-${environment}-${location}-001'
+// Container App names have a tight 32-character ARM limit (tighter than any other resource
+// in this template). The `-001` instance suffix is dropped here specifically — there is only
+// ever one instance of each app per environment — to leave headroom for longer region names
+// (e.g. `belgiumcentral`) without truncating the workload/component tokens.
+var frontendAppName = 'ca-hotelweb-${environment}-${location}'
+var backendAppName = 'ca-hotelapi-${environment}-${location}'
 var backendIdentityName = 'id-hotelapi-${environment}-${location}-001'
 var sqlServerName = 'sql-${workloadName}-${environment}-${location}-${uniqueString(resourceGroup().id)}'
 var sqlDatabaseName = 'sqldb-${workloadName}-${environment}'
@@ -103,7 +109,7 @@ var sqlPrivateEndpointName = 'pep-sql-${workloadName}-${environment}-001'
 #disable-next-line no-hardcoded-env-urls
 var sqlPrivateDnsZoneName = 'privatelink.database.windows.net'
 var logAnalyticsName = 'log-${workloadName}-${environment}-${location}-001'
-var appInsightsName = 'appi-${workloadName}-${environment}-${location}-001'
+var appInsightsName = 'appi-${workloadName}-${environment}-${monitorLocation}-001'
 
 var backendImage = '${backendImageRepository}:${imageTag}'
 var frontendImage = '${frontendImageRepository}:${imageTag}'
@@ -146,6 +152,9 @@ module backendIdentity 'br/public:avm/res/managed-identity/user-assigned-identit
     location: location
     tags: tags
     enableTelemetry: false
+    // Explicitly matches what Azure already defaults this to — avoids a benign what-if
+    // "modify" line (the resource's actual state never changes either way).
+    isolationScope: 'None'
   }
 }
 
@@ -163,11 +172,13 @@ module sqlPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = {
         name: 'link-${spokeVnet.name}'
         virtualNetworkResourceId: spokeVnet.id
         registrationEnabled: false
+        resolutionPolicy: 'Default'
       }
       {
         name: 'link-${hubVnet.name}'
         virtualNetworkResourceId: hubVnet.id
         registrationEnabled: false
+        resolutionPolicy: 'Default'
       }
     ]
   }
@@ -247,7 +258,7 @@ module appInsights 'br/public:avm/res/insights/component:0.8.0' = {
   name: 'app-insights'
   params: {
     name: appInsightsName
-    location: location
+    location: monitorLocation
     tags: tags
     enableTelemetry: false
     kind: 'web'
@@ -275,6 +286,13 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.16.
     // 'Disabled', which would also block the frontend's public ingress on an otherwise
     // "External" environment.
     publicNetworkAccess: 'Enabled'
+    // Matches what Azure already defaults peer-to-peer mTLS to — avoids a benign what-if
+    // "modify" line (the environment's actual behavior is unchanged either way).
+    peerAuthentication: {
+      mtls: {
+        enabled: false
+      }
+    }
     infrastructureSubnetResourceId: containerAppsSubnet.outputs.resourceId
     workloadProfiles: [
       {

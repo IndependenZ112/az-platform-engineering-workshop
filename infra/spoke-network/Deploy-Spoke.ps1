@@ -19,7 +19,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Location = 'swedencentral',
+    [string]$Location = 'belgiumcentral',
     [string]$DeploymentName = "spoke-network-$(Get-Date -Format 'yyyyMMddHHmmss')"
 )
 

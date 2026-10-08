@@ -1,7 +1,7 @@
 targetScope = 'subscription'
 
 @description('Azure region for the workload resource group and spoke VNet.')
-param location string = 'swedencentral'
+param location string = 'belgiumcentral'
 
 @minLength(3)
 @maxLength(20)
@@ -36,7 +36,10 @@ param tags object = {
   role: 'workload'
 }
 
-var workloadResourceGroupName = 'rg-${workloadName}-${environment}'
+// Includes the region token so the resource group name stays unique across regions — this
+// lets a spoke be torn down in one region and (re)created in another without name collisions
+// while the old resource group is still finishing its (slow) async deletion.
+var workloadResourceGroupName = 'rg-${workloadName}-${environment}-${location}'
 var spokeVnetName = 'vnet-${workloadName}-${environment}-${location}-001'
 
 // The hub VNet already exists (deployed by mock-alz/Deploy-Hub.ps1); reference it instead of
@@ -47,7 +50,10 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2024-07-01' existing = {
 }
 
 module workloadResourceGroup 'br/public:avm/res/resources/resource-group:0.4.4' = {
-  name: 'workload-resource-group'
+  // Deployment names are tracked (with their location) in the subscription's deployment
+  // history; including `location` keeps re-deploys to a different region from colliding with
+  // an old deployment name still on record for a prior region.
+  name: 'workload-resource-group-${location}'
   params: {
     name: workloadResourceGroupName
     location: location
@@ -60,7 +66,7 @@ module workloadResourceGroup 'br/public:avm/res/resources/resource-group:0.4.4' 
 //   snet-private-endpoints   192.168.101.0/26    (.0  - .63)   - private endpoints for PaaS services
 //   (192.168.101.64/26 and 192.168.101.128/25 left free for app/data subnets in later chores)
 module spokeVnet 'br/public:avm/res/network/virtual-network:0.10.2' = {
-  name: 'spoke-vnet'
+  name: 'spoke-vnet-${location}'
   scope: resourceGroup(workloadResourceGroupName)
   params: {
     name: spokeVnetName

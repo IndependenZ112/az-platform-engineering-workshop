@@ -32,8 +32,8 @@
 
 [CmdletBinding()]
 param(
-    [string]$ResourceGroupName = 'rg-hotelbooking-test',
-    [string]$Location = 'swedencentral',
+    [string]$ResourceGroupName = 'rg-hotelbooking-test-belgiumcentral',
+    [string]$Location = 'belgiumcentral',
     [string]$DeploymentName = "workload-$(Get-Date -Format 'yyyyMMddHHmmss')",
     [switch]$Deploy
 )

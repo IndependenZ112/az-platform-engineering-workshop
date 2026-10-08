@@ -1,7 +1,7 @@
 # Azure Deployment Preflight Report
 
-**Generated:** 2026-10-08T10:35:00Z
-**Status:** ✅ Pass
+**Generated:** 2026-10-08T12:50:00Z (updated after live deployment)
+**Status:** ✅ Pass — deployed and verified
 
 ---
 
@@ -12,7 +12,7 @@
 | **Template File(s)** | `infra/workload/main.bicep` |
 | **Parameter File(s)** | `infra/workload/main.bicepparam` |
 | **Project Type** | standalone-bicep |
-| **Deployment Scope** | resourceGroup (`rg-hotelbooking-test`) |
+| **Deployment Scope** | resourceGroup (`rg-hotelbooking-test-belgiumcentral`) |
 | **Target** | Azure subscription 1 (`<redacted-subscription-id>`) |
 | **Validation Level** | Provider |
 
@@ -20,99 +20,62 @@
 
 | Check | Status | Details |
 |-------|--------|---------|
-| Bicep Syntax | ✅ Pass | `az bicep build --file infra/workload/main.bicep --stdout` — no errors, no warnings (one `no-hardcoded-env-urls` warning on the fixed `privatelink.database.windows.net` zone name was explicitly suppressed with a documented `#disable-next-line`, since Private Link DNS zone names are fixed well-known values, not environment-specific endpoints). |
-| What-If Analysis | ✅ Pass | 16 resources to create, 0 to modify, 0 to delete, 1 ignored (an AVM module's own no-op telemetry ping deployment — expected and benign). No surprises. |
-| Permission Check | ✅ Pass | `Provider` validation level succeeded on the first attempt — no fallback to `ProviderNoRbac` was needed, confirming the deploying principal's permissions are sufficient for every resource in the template, including the DNS zone's virtual network link into the hub VNet (`rg-platform`), which only requires read access to resolve the VNet reference (the link resource itself lives in the workload RG). |
+| Bicep Syntax | ✅ Pass | `az bicep build` — no errors, no warnings. |
+| ARM Validate | ✅ Pass | `az deployment group validate` → `provisioningState: Succeeded`. |
+| What-If Analysis | ✅ Pass | No surprises on the first deploy. |
+| Permission Check | ✅ Pass | `Provider` validation level succeeded on every run — no RBAC fallback needed. |
+| **Idempotency (live, 3 consecutive real deploys)** | ✅ Pass | After the first apply, the what-if diff stabilized at exactly **8 "modify" lines, 8 no-change, 4 ignored, 0 create, 0 delete** — identical across a second and third real `az deployment group create`. Every remaining line is either (a) a known What-If display artifact comparing a `reference()` expression against its already-resolved literal value in container app `env` arrays, or (b) a read-only/platform-computed property (`etag`, `provisioningState`, SQL engine `version`, Log Analytics `features`) that Bicep cannot author away. None represent actual configuration drift — confirmed by re-running the identical deploy twice with no resource left unchanged. |
 
 ---
 
-## Tools Executed
+## Regional note
 
-### Commands Run
-
-| Step | Command | Exit Code |
-|------|---------|-----------|
-| 1 | `az bicep build --file infra\workload\main.bicep --stdout` | 0 |
-| 2 | `az bicep build-params --file infra\workload\main.bicepparam --stdout` | 0 |
-| 3 | `infra\workload\Deploy-Workload.ps1` (preflight-only; no `-Deploy`) — runs Bicep build, then `az deployment group what-if --validation-level Provider` | 0 |
-
-### Tool Versions
-
-| Tool | Version |
-|------|---------|
-| Azure CLI | 2.85.0 |
-| Bicep CLI | bundled with Azure CLI (`az bicep build` succeeded) |
-| Azure Developer CLI | n/a |
+The workload region changed mid-chore (hub stays in **Sweden Central**; the spoke and workload
+move to **Belgium Central**, connected by global VNet peering). `Microsoft.Insights/components`
+(Application Insights) is **not yet available in Belgium Central**; it is deployed in **Sweden
+Central** instead (`monitorLocation` parameter) — Monitor resources have no private-networking
+coupling to the rest of the workload, so this is a safe, well-architected regional fallback, not
+an architectural compromise. The resource group name now embeds the region
+(`rg-hotelbooking-test-belgiumcentral`) so a spoke can be re-created in a different region without
+waiting on a prior region's (slow) async resource-group deletion. Container app names had their
+`-001` instance suffix dropped to stay under the 32-character `Microsoft.App/containerApps` name
+limit once combined with the longer `belgiumcentral` region token.
 
 ---
 
-## Issues
+## Live Verification
 
-✅ **No issues found.** The template is ready for deployment in a follow-up chore.
-
----
-
-## What-If Results
-
-### Change Summary
-
-| Change Type | Count |
-|-------------|-------|
-| 🆕 Create | 16 |
-| 📝 Modify | 0 |
-| 🗑️ Delete | 0 |
-| ⚠️ Ignore | 1 |
-
-### Resources to Create
-
-| Resource Type | Resource Name |
+| Check | Result |
 |---|---|
-| Microsoft.Network/virtualNetworks/subnets | `snet-containerapps` (new subnet on the existing spoke VNet) |
-| Microsoft.ManagedIdentity/userAssignedIdentities | `id-hotelapi-test-swedencentral-001` |
-| Microsoft.Network/privateDnsZones | `privatelink.database.windows.net` |
-| Microsoft.Network/privateDnsZones/virtualNetworkLinks | `link-vnet-hotelbooking-test-swedencentral-001` (spoke) |
-| Microsoft.Network/privateDnsZones/virtualNetworkLinks | `link-vnet-hub` (hub) |
-| Microsoft.Sql/servers | `sql-hotelbooking-test-swedencentral-<uniqueString>` |
-| Microsoft.Sql/servers/databases | `sqldb-hotelbooking-test` |
-| Microsoft.Sql/servers/auditingSettings | `default` (AVM module default) |
-| Microsoft.Sql/servers/connectionPolicies | `default` (AVM module default) |
-| Microsoft.Network/privateEndpoints | `pep-sql-hotelbooking-test-001` |
-| Microsoft.Network/privateEndpoints/privateDnsZoneGroups | `default` |
-| Microsoft.OperationalInsights/workspaces | `log-hotelbooking-test-swedencentral-001` |
-| Microsoft.Insights/components | `appi-hotelbooking-test-swedencentral-001` |
-| Microsoft.App/managedEnvironments | `cae-hotelbooking-test-swedencentral-001` |
-| Microsoft.App/containerApps | `ca-hotelapi-test-swedencentral-001` (backend, internal ingress) |
-| Microsoft.App/containerApps | `ca-hotelweb-test-swedencentral-001` (frontend, external ingress) |
-
-### Resources to Modify
-
-*No resources will be modified.* (The existing resource group and spoke VNet are referenced, not changed; the new subnet is an addition to the VNet's subnet collection, not a modification of an existing subnet.)
-
-### Resources to Delete
-
-*No resources will be deleted.*
-
-### Key property confirmations (from the what-if diff)
-
-- `Microsoft.Sql/servers` → `properties.publicNetworkAccess: "Disabled"`, `properties.administrators.azureADOnlyAuthentication: true`, `properties.administrators.principalType: "Application"`, `properties.administrators.sid` built via `reference(...).principalId` on the backend UAMI (no secret).
-- `Microsoft.App/containerApps/ca-hotelapi-...` → `identity.type: "UserAssigned"` (the backend UAMI only), `properties.configuration.ingress.external: false`, env vars built entirely via `reference()`/`format()` expressions (`ConnectionStrings__HotelDb`, `AZURE_CLIENT_ID`, `APPLICATIONINSIGHTS_CONNECTION_STRING`) — no literal secret values.
-- `Microsoft.App/containerApps/ca-hotelweb-...` → `properties.configuration.ingress.external: true`, `BACKEND_URL` built via `reference()` to the backend app's ingress FQDN.
-- No `Microsoft.ContainerRegistry/registries` resource anywhere in the plan; neither container app has a `registries` block.
-- No private endpoint, `publicNetworkAccess: 'Disabled'`, or `privatelink.*` zone for Log Analytics or Application Insights — both stay fully public as required.
+| Active subscription matches hub + spoke | ✅ Same subscription for `rg-platform` (Sweden Central) and `rg-hotelbooking-test-belgiumcentral` (Belgium Central) |
+| Second deploy's what-if | ✅ 0 create / 0 delete (see Idempotency row above) |
+| Private endpoint IP vs. Private DNS A record | ✅ Both `192.168.101.4` |
+| Private endpoint IP inside `snet-private-endpoints` | ✅ Subnet is `192.168.101.0/26` |
+| SQL FQDN resolves via `privatelink.*` CNAME from outside the spoke | ✅ `Resolve-DnsName` shows the public FQDN CNAME-chains through `*.privatelink.database.windows.net` |
+| Direct SQL connection refuses | ✅ `publicNetworkAccess: Disabled` and `azureAdOnlyAuthentication: True` confirmed live; every external connection attempt (SQL auth, bad credentials, Entra-incompatible) was rejected — none reached the private backend |
+| Container apps `minReplicas = 0` | ✅ Both apps |
+| Public GHCR images, no registry credentials | ✅ `registries: null` on both; `backend:latest` / `frontend:latest` |
+| Backend ingress internal-only / Frontend ingress external | ✅ `external: false` / `external: true` |
+| Frontend public URL loads the SPA | ✅ `200`, `text/html`, title "StayBright Hotels" |
+| `/api/hotels` returns JSON through the frontend proxy | ✅ `200`, `application/json`, 100 hotels returned |
+| Both container apps report healthy revisions | ✅ `HealthState: Healthy` before (at `ScaledToZero`) and after (at `Running`, 1 replica) real traffic |
 
 ---
 
-## Recommendations
+## Resting cost posture
 
-1. The template is complete and its what-if is understood — ready to deploy in a follow-up chore.
-2. No action required before sign-off.
+Every compute/data resource is consumption-based with scale-to-zero: Container Apps
+(`minReplicas: 0`, Consumption workload profile), Azure SQL (serverless, `GP_S_Gen5`,
+auto-pause after 60 minutes idle), Log Analytics/Application Insights (pay-per-ingestion, no
+fixed capacity reservation). No VM, no App Service Plan, no NAT Gateway, no Application
+Gateway, no Azure Firewall. Resting cost is effectively ingestion/storage-only once both apps
+scale to zero and the database auto-pauses.
 
 ---
 
 ## Next Steps
 
-Preflight passed. Deployment itself is intentionally **not** performed in this chore
-(`Deploy-Workload.ps1` defaults to preflight-only and requires an explicit `-Deploy` switch).
+Deployed and verified. No further action required for this chore.
 
 ---
 

@@ -1,6 +1,6 @@
 using 'main.bicep'
 
-param location = 'swedencentral'
+param location = 'belgiumcentral'
 param workloadName = 'hotelbooking'
 param environment = 'test'
 param hubResourceGroupName = 'rg-platform'

@@ -1,9 +1,10 @@
 using 'main.bicep'
 
-param location = 'swedencentral'
+param location = 'belgiumcentral'
+param monitorLocation = 'swedencentral'
 param workloadName = 'hotelbooking'
 param environment = 'test'
-param spokeVnetName = 'vnet-hotelbooking-test-swedencentral-001'
+param spokeVnetName = 'vnet-hotelbooking-test-belgiumcentral-001'
 param hubResourceGroupName = 'rg-platform'
 param hubVnetName = 'vnet-hub'
 param containerAppsSubnetAddressPrefix = '192.168.101.64/27'
