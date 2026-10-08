@@ -1,26 +1,31 @@
 #requires -Version 7.0
 <#
 .SYNOPSIS
-    Deploys the Hotel Booking workload into the existing workload spoke.
+    Deploys the Hotel Booking workload (test or prod) into its existing workload spoke.
 
 .DESCRIPTION
-    Deploys infra/workload/main.bicep into an existing resource group using the Azure CLI.
-    Every run performs a preflight pass first — Bicep build (syntax), a what-if analysis, and
-    an implicit permission check (the `Provider` validation level fails with an authorization
-    error if the signed-in principal lacks the rights to deploy what's in the template) — and
-    prints a clear pass/fail summary. The actual deployment only runs when `-Deploy` is passed;
-    by default this script is preflight-only, so it's safe to run repeatedly (including as the
-    verification step for a design-only chore).
+    Deploys infra/workload/main.bicep into an existing resource group using the Azure CLI, with
+    the resource group and parameter file selected by `-Environment`. `test` and `prod` deploy
+    from the exact same template — every difference between them is a parameter value in
+    `main.<Environment>.bicepparam`, never a branch in the template. Every run performs a
+    preflight pass first — Bicep build (syntax), a what-if analysis, and an implicit permission
+    check (the `Provider` validation level fails with an authorization error if the signed-in
+    principal lacks the rights to deploy what's in the template) — and prints a clear pass/fail
+    summary. The actual deployment only runs when `-Deploy` is passed; by default this script is
+    preflight-only, so it's safe to run repeatedly.
 
     Run from PowerShell 7+ with az CLI already logged in (`az login`) and the correct
     subscription selected (`az account set`).
 
-.PARAMETER ResourceGroupName
-    Name of the existing workload resource group to deploy into.
+.PARAMETER Environment
+    Which environment to deploy: `test` or `prod`. Selects the resource group and
+    `main.<Environment>.bicepparam`:
 
-.PARAMETER Location
-    Azure region used for the subscription-level `--location` metadata of the deployment
-    record (resource location itself comes from the Bicep parameters).
+        test -> rg-hotelbooking-test-belgiumcentral  / main.test.bicepparam
+        prod -> rg-hotelbooking-prod-swedencentral   / main.prod.bicepparam
+
+.PARAMETER ResourceGroupName
+    Overrides the environment's default resource group, if ever needed.
 
 .PARAMETER DeploymentName
     Name of the resource-group-scoped deployment.
@@ -32,17 +37,30 @@
 
 [CmdletBinding()]
 param(
-    [string]$ResourceGroupName = 'rg-hotelbooking-test-belgiumcentral',
-    [string]$Location = 'belgiumcentral',
-    [string]$DeploymentName = "workload-$(Get-Date -Format 'yyyyMMddHHmmss')",
+    [Parameter(Mandatory)]
+    [ValidateSet('test', 'prod')]
+    [string]$Environment,
+
+    [string]$ResourceGroupName,
+
+    [string]$DeploymentName = "workload-$Environment-$(Get-Date -Format 'yyyyMMddHHmmss')",
+
     [switch]$Deploy
 )
 
 $ErrorActionPreference = 'Stop'
 
+$defaultResourceGroups = @{
+    test = 'rg-hotelbooking-test-belgiumcentral'
+    prod = 'rg-hotelbooking-prod-belgiumcentral'
+}
+if (-not $ResourceGroupName) {
+    $ResourceGroupName = $defaultResourceGroups[$Environment]
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $templateFile = Join-Path $scriptRoot 'main.bicep'
-$parameterFile = Join-Path $scriptRoot 'main.bicepparam'
+$parameterFile = Join-Path $scriptRoot "main.$Environment.bicepparam"
 
 Write-Host "Using subscription:" -ForegroundColor Cyan
 az account show --query '{name:name, id:id}' -o table
@@ -50,7 +68,7 @@ az account show --query '{name:name, id:id}' -o table
 Write-Host "`nChecking resource group '$ResourceGroupName' exists..." -ForegroundColor Cyan
 $rgExists = az group exists --name $ResourceGroupName
 if ($rgExists -ne 'true') {
-    throw "Resource group '$ResourceGroupName' does not exist. It is created by the spoke-network deployment (infra/spoke-network) — run that first."
+    throw "Resource group '$ResourceGroupName' does not exist. It is created by the spoke-network deployment (infra/spoke-network/Deploy-Spoke.ps1 -Environment $Environment) — run that first."
 }
 
 Write-Host "`n--- Preflight: Bicep syntax ---" -ForegroundColor Cyan
@@ -94,7 +112,7 @@ if (-not $Deploy) {
     return
 }
 
-Write-Host "`n--- Deploying ($DeploymentName) ---" -ForegroundColor Cyan
+Write-Host "`n--- Deploying '$Environment' ($DeploymentName) ---" -ForegroundColor Cyan
 az deployment group create `
     --resource-group $ResourceGroupName `
     --name $DeploymentName `

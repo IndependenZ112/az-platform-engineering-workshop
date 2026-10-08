@@ -1,0 +1,68 @@
+<mxfile host="app.diagrams.net" modified="2026-10-08T13:00:00.000Z" agent="copilot" version="24.0.0" type="device">
+  <diagram id="multi-env-topology" name="Multi-environment topology (test + prod)">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="sub" value="Azure subscription (single subscription — workshop simplification)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#999999;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1320" height="780" as="geometry" />
+        </mxCell>
+
+        <!-- Hub -->
+        <mxCell id="hub" value="Hub — rg-platform — Sweden Central&#10;vnet-hub 192.168.100.0/24&#10;(unchanged by this chore)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="80" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Test spoke -->
+        <mxCell id="test" value="TEST — rg-hotelbooking-test-belgiumcentral&#10;Belgium Central&#10;vnet-hotelbooking-test-belgiumcentral-001&#10;192.168.101.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="140" y="280" width="460" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="test-detail" value="cae-hotelbooking-test-belgiumcentral-001 (Consumption, zoneRedundant: false)&#10;ca-hotelweb-test-belgiumcentral — external — min 0 / max 3&#10;ca-hotelapi-test-belgiumcentral — internal — min 0 / max 3&#10;sql-hotelbooking-test-belgiumcentral-… — GP_S_Gen5 ×1, zoneRedundant: false, autoPause 60 min&#10;id-hotelapi-test-belgiumcentral-001 (runtime) = SQL Entra admin&#10;id-cicd-hotelbooking-test-belgiumcentral-001 (CI/CD, Contributor on this RG)&#10;privatelink.database.windows.net (own zone, linked to this spoke + hub)&#10;log-hotelbooking-test-belgiumcentral-001 (Log Analytics)" style="text;html=1;align=left;verticalAlign=top;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="150" y="375" width="440" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="test-mon" value="appi-hotelbooking-test-swedencentral-001&#10;(App Insights placed in Sweden Central —&#10;not yet available in Belgium Central;&#10;public endpoint, no private coupling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="150" y="555" width="440" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="test-scale" value="scale-to-zero · resting cost ≈ 0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="150" y="645" width="440" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Prod spoke -->
+        <mxCell id="prod" value="PROD — rg-hotelbooking-prod-belgiumcentral&#10;Belgium Central (same region as test)&#10;vnet-hotelbooking-prod-belgiumcentral-001&#10;192.168.102.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="800" y="280" width="460" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-detail" value="cae-hotelbooking-prod-belgiumcentral-001 (Consumption, zoneRedundant: true)&#10;ca-hotelweb-prod-belgiumcentral — external — min 3 / max 10&#10;ca-hotelapi-prod-belgiumcentral — internal — min 3 / max 10&#10;sql-hotelbooking-prod-belgiumcentral-… — GP_S_Gen5 ×2, zoneRedundant: true, autoPause disabled (-1)&#10;id-hotelapi-prod-belgiumcentral-001 (runtime) = SQL Entra admin&#10;id-cicd-hotelbooking-prod-belgiumcentral-001 (CI/CD, Contributor on this RG)&#10;privatelink.database.windows.net (own zone, isolated from test's)&#10;log-hotelbooking-prod-belgiumcentral-001 (Log Analytics)" style="text;html=1;align=left;verticalAlign=top;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="810" y="375" width="440" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-mon" value="appi-hotelbooking-prod-swedencentral-001&#10;(Application Insights isn't available in Belgium Central yet —&#10;same Sweden Central fallback as test's; public endpoint, no private coupling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="810" y="555" width="440" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-scale" value="≥ 3 replicas always on, spread across 3 availability zones · never scales to zero" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="810" y="645" width="440" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Peerings -->
+        <mxCell id="e-test-hub" value="peered (bidirectional)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;html=1;" edge="1" parent="1" source="test" target="hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-prod-hub" value="peered (bidirectional)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;html=1;" edge="1" parent="1" source="prod" target="hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-no-peer" value="NOT peered — no network path between environments" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#b85450;strokeWidth=2;dashed=1;html=1;startArrow=none;endArrow=none;" edge="1" parent="1" source="test" target="prod">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="700" />
+              <mxPoint x="900" y="700" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="note" value="Same infra/workload/main.bicep for both — every difference above is a parameter value (main.test.bicepparam / main.prod.bicepparam), never an environment if-branch." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="330" y="200" width="680" height="50" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -29,6 +29,12 @@ param spokeAddressPrefix string = '192.168.101.0/24'
 @description('Address prefix for the private endpoint subnet, carved out of the spoke address space.')
 param privateEndpointSubnetPrefix string = '192.168.101.0/26'
 
+@description('Name of the spoke-side peering resource (on the spoke VNet). Each spoke peering to the shared hub needs its own unique name on the hub side (see `hubSidePeeringName`) — this is an explicit parameter, not derived from the spoke name, specifically so an already-deployed environment\'s peering name never changes when a new environment is added.')
+param spokeSidePeeringName string = 'peer-spoke-to-hub'
+
+@description('Name of the hub-side (remote) peering resource, created on the existing hub VNet. Must be unique per spoke — the hub VNet accumulates one peering per environment, and a literal, non-unique name here would make a second spoke\'s deployment try to change an existing peering\'s remote VNet in place, which Azure rejects (`ChangingRemoteVirtualNetworkNotAllowed`).')
+param hubSidePeeringName string = 'peer-hub-to-spoke'
+
 @description('Tags applied to the workload resource group and its resources.')
 param tags object = {
   workload: workloadName
@@ -83,14 +89,14 @@ module spokeVnet 'br/public:avm/res/network/virtual-network:0.10.2' = {
     ]
     peerings: [
       {
-        name: 'peer-spoke-to-hub'
+        name: spokeSidePeeringName
         remoteVirtualNetworkResourceId: hubVnet.id
         allowVirtualNetworkAccess: true
         allowForwardedTraffic: true
         allowGatewayTransit: false
         useRemoteGateways: false
         remotePeeringEnabled: true
-        remotePeeringName: 'peer-hub-to-spoke'
+        remotePeeringName: hubSidePeeringName
         remotePeeringAllowVirtualNetworkAccess: true
         remotePeeringAllowForwardedTraffic: true
         remotePeeringAllowGatewayTransit: false

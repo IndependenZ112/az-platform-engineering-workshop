@@ -3,6 +3,18 @@
 **Generated:** 2026-10-08T12:50:00Z (updated after live deployment)
 **Status:** ✅ Pass — deployed and verified
 
+> **Update:** the template was subsequently parameterised for a `prod` environment
+> alongside `test` (one template, two parameter files — `main.test.bicepparam` /
+> `main.prod.bicepparam`). `prod` is now deployed in `rg-hotelbooking-prod-belgiumcentral`
+> with zone-redundant Container Apps + SQL, ≥3 replicas, no scale-to-zero, and its own
+> isolated spoke/Private DNS zone, peered to the hub independently of `test`. `test`'s
+> original deployment below is unchanged (verified via a clean what-if after every
+> template change), aside from one deliberate cross-environment bug fix:
+> `connectionPolicy: 'Proxy'` on the SQL server, required for Private Link to work at all
+> (discovered when `prod`'s backend failed to connect) and applied to `test` too since the
+> bug was latent there as well. See `docs/workload-infrastructure-design.md` §0 and §4 for
+> the full multi-environment design and this fix's rationale.
+
 ---
 
 ## Summary

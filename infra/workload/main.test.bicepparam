@@ -8,6 +8,8 @@ param spokeVnetName = 'vnet-hotelbooking-test-belgiumcentral-001'
 param hubResourceGroupName = 'rg-platform'
 param hubVnetName = 'vnet-hub'
 param containerAppsSubnetAddressPrefix = '192.168.101.64/27'
+param zoneRedundant = false
+param linkPrivateDnsZoneToHub = true
 
 // First deployment uses the public workshop images' `latest` tag (per chore requirements).
 // Pin to an immutable commit SHA for subsequent deployments.

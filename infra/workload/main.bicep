@@ -17,8 +17,12 @@ param workloadName string = 'hotelbooking'
 
 @minLength(2)
 @maxLength(10)
-@description('Environment token embedded in resource names.')
+@allowed(['test', 'prod'])
+@description('Environment token embedded in resource names. One template, two parameter files — every test/prod difference is a parameter value, never a branch in this template.')
 param environment string = 'test'
+
+@description('Whether the Container Apps environment and the SQL database are zone-redundant. `test` runs `false` (cost); `prod` runs `true` (reliability) — one flag drives both resources identically. A Container Apps environment\'s zone redundancy is set at creation and cannot change in place, so this only ever applies to a fresh environment.')
+param zoneRedundant bool = false
 
 @description('Tags applied to all workload resources.')
 param tags object = {
@@ -83,6 +87,9 @@ param sqlDatabaseMinCapacity string = '0.5'
 
 @description('Minutes of inactivity before the serverless database auto-pauses (-1 disables auto-pause).')
 param sqlDatabaseAutoPauseDelay int = 60
+
+@description('Whether this environment\'s Private DNS zone also links to the hub VNet, in addition to its own spoke. Azure hard-blocks linking one VNet to two zones sharing the same namespace (`privatelink.database.windows.net`) even across resource groups — so once one environment\'s zone links to the shared hub, no other environment\'s same-named zone can. The spoke link alone is sufficient: only the backend container app (which lives in the spoke) ever needs to resolve the private endpoint\'s FQDN; nothing in the hub does. `test` keeps this `true` (its existing, already-deployed state); every environment added afterwards sets it `false`.')
+param linkPrivateDnsZoneToHub bool = true
 
 @description('Log Analytics workspace retention, in days (kept short for a `test` environment).')
 param logAnalyticsRetentionDays int = 30
@@ -159,28 +166,36 @@ module backendIdentity 'br/public:avm/res/managed-identity/user-assigned-identit
 }
 
 // ──────────────────────────────────────────────
-//  Distributed Private DNS — zone lives in the workload RG, linked to spoke + hub
+//  Distributed Private DNS — zone lives in the workload RG, linked to its own spoke always,
+//  and to the hub only when `linkPrivateDnsZoneToHub` allows it (see that parameter's
+//  description for the Azure constraint behind this).
 // ──────────────────────────────────────────────
+var hubPrivateDnsZoneLink = [
+  {
+    name: 'link-${hubVnet.name}'
+    virtualNetworkResourceId: hubVnet.id
+    registrationEnabled: false
+    resolutionPolicy: 'Default'
+  }
+]
+
 module sqlPrivateDnsZone 'br/public:avm/res/network/private-dns-zone:0.8.1' = {
   name: 'sql-private-dns-zone'
   params: {
     name: sqlPrivateDnsZoneName
     tags: tags
     enableTelemetry: false
-    virtualNetworkLinks: [
-      {
-        name: 'link-${spokeVnet.name}'
-        virtualNetworkResourceId: spokeVnet.id
-        registrationEnabled: false
-        resolutionPolicy: 'Default'
-      }
-      {
-        name: 'link-${hubVnet.name}'
-        virtualNetworkResourceId: hubVnet.id
-        registrationEnabled: false
-        resolutionPolicy: 'Default'
-      }
-    ]
+    virtualNetworkLinks: concat(
+      [
+        {
+          name: 'link-${spokeVnet.name}'
+          virtualNetworkResourceId: spokeVnet.id
+          registrationEnabled: false
+          resolutionPolicy: 'Default'
+        }
+      ],
+      linkPrivateDnsZoneToHub ? hubPrivateDnsZoneLink : []
+    )
   }
 }
 
@@ -196,6 +211,12 @@ module sqlServer 'br/public:avm/res/sql/server:0.22.1' = {
     tags: tags
     enableTelemetry: false
     publicNetworkAccess: 'Disabled'
+    // Azure SQL's default connection policy is `Redirect`, which sends clients to a direct
+    // node hostname (`*.worker.database.windows.net`) that the private DNS zone has no record
+    // for — so it falls back to a public resolution path that's then correctly denied by
+    // `publicNetworkAccess: Disabled`. Private Link requires `Proxy`: every packet routes
+    // through the gateway, which the private endpoint IP already reaches directly.
+    connectionPolicy: 'Proxy'
     administrators: {
       administratorType: 'ActiveDirectory'
       azureADOnlyAuthentication: true
@@ -208,7 +229,7 @@ module sqlServer 'br/public:avm/res/sql/server:0.22.1' = {
       {
         name: sqlDatabaseName
         availabilityZone: -1
-        zoneRedundant: false
+        zoneRedundant: zoneRedundant
         sku: {
           name: sqlDatabaseSkuName
           tier: sqlDatabaseSkuTier
@@ -280,7 +301,7 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.16.
     location: location
     tags: tags
     enableTelemetry: false
-    zoneRedundant: false
+    zoneRedundant: zoneRedundant
     internal: false
     // `publicNetworkAccess` must be explicitly 'Enabled' — the module defaults it to
     // 'Disabled', which would also block the frontend's public ingress on an otherwise
