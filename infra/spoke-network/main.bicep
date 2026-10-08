@@ -40,6 +40,7 @@ param tags object = {
   workload: workloadName
   environment: environment
   role: 'workload'
+  managedBy: 'infra-pipeline'
 }
 
 // Includes the region token so the resource group name stays unique across regions — this

@@ -106,6 +106,7 @@ param tags object = {
   workload: workloadName
   environment: environment
   role: 'workload'
+  managedBy: 'infra-pipeline'
 }
 
 var spokeVnetName = 'vnet-${workloadName}-${environment}-${location}-001'
